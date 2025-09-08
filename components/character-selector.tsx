@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, Code, Palette, Plus, User, Wrench, Edit, Trash2, Save, X, Settings } from "lucide-react"
+import { BookOpen, Code, Palette, Plus, User, Wrench, Edit, Trash2, Save, X, Settings, Shield } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -98,10 +98,24 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     try {
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('custom-characters')
+        const modifiedPresets = loadModifiedPresets()
+        
+        let allCharacters = [...defaultCharacters]
+        
         if (saved) {
           const customChars = JSON.parse(saved)
-          return [...defaultCharacters, ...customChars]
+          allCharacters = [...allCharacters, ...customChars]
         }
+        
+        // Merge modified presets with default characters
+        modifiedPresets.forEach(modified => {
+          const index = allCharacters.findIndex(char => char.id === modified.id)
+          if (index !== -1) {
+            allCharacters[index] = modified
+          }
+        })
+        
+        return allCharacters
       }
       return defaultCharacters
     } catch (error) {
@@ -113,6 +127,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
+  const [isAdminMode, setIsAdminMode] = React.useState(false)
   const [characterForm, setCharacterForm] = React.useState({
     name: "",
     description: "",
@@ -121,14 +136,32 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     color: "bg-orange-500"
   })
 
-  // Save custom characters to localStorage
-  const saveCustomCharacters = (chars: Character[]) => {
+  // Save characters to localStorage (both custom and modified presets)
+  const saveCharacters = (chars: Character[]) => {
     try {
+      // Save custom characters
       const customChars = chars.filter(char => char.isCustom)
       localStorage.setItem('custom-characters', JSON.stringify(customChars))
+      
+      // Save modified preset characters
+      const modifiedPresets = chars.filter(char => !char.isCustom && char.updatedAt)
+      localStorage.setItem('modified-presets', JSON.stringify(modifiedPresets))
     } catch (error) {
       showError(`Failed to save characters: ${error instanceof Error ? error.message : 'Storage quota exceeded or storage unavailable'}`)
     }
+  }
+
+  // Load modified presets from localStorage
+  const loadModifiedPresets = (): Character[] => {
+    try {
+      const saved = localStorage.getItem('modified-presets')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (error) {
+      console.warn('Failed to load modified presets:', error)
+    }
+    return []
   }
 
   const handleCreateCustomCharacter = () => {
@@ -147,7 +180,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       }
       const updatedCharacters = [...characters, newCharacter]
       setCharacters(updatedCharacters)
-      saveCustomCharacters(updatedCharacters)
+      saveCharacters(updatedCharacters)
       onCharacterSelect(newCharacter.id)
       resetForm()
       setIsCreateDialogOpen(false)
@@ -183,7 +216,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
         char.id === editingCharacter.id ? updatedCharacter : char
       )
       setCharacters(updatedCharacters)
-      saveCustomCharacters(updatedCharacters)
+      saveCharacters(updatedCharacters)
       resetForm()
       setIsEditDialogOpen(false)
       setEditingCharacter(null)
@@ -193,7 +226,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
   const handleDeleteCharacter = (characterId: string) => {
     const updatedCharacters = characters.filter(char => char.id !== characterId)
     setCharacters(updatedCharacters)
-    saveCustomCharacters(updatedCharacters)
+    saveCharacters(updatedCharacters)
     if (selectedCharacter === characterId) {
       onCharacterSelect("assistant") // Default to assistant if deleted character was selected
     }
@@ -221,18 +254,27 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
           <h2 className="text-2xl font-bold">Character Management</h2>
           <p className="text-muted-foreground">Create, edit, and manage your AI characters</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Character
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Character</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={isAdminMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsAdminMode(!isAdminMode)}
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            {isAdminMode ? "Exit Admin" : "Admin Mode"}
+          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Character
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Create New Character</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[400px] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="create-name">Character Name</Label>
@@ -308,7 +350,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
             <DialogHeader>
               <DialogTitle>Edit Character</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-name">Character Name</Label>
@@ -383,11 +425,10 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {characters.map((character) => {
           const IconComponent = character.icon
           return (
@@ -406,12 +447,19 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
                     </div>
                     <div>
                       <CardTitle className="text-lg">{character.name}</CardTitle>
-                      {character.isCustom && (
-                        <Badge variant="secondary" className="text-xs">Custom</Badge>
-                      )}
+                      <div className="flex gap-1">
+                        {character.isCustom ? (
+                          <Badge variant="secondary" className="text-xs">Custom</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Preset</Badge>
+                        )}
+                        {isAdminMode && !character.isCustom && (
+                          <Badge variant="destructive" className="text-xs">Admin Edit</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {character.isCustom && (
+                  {(character.isCustom || isAdminMode) && (
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
