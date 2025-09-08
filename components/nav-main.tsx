@@ -76,6 +76,12 @@ export function NavMain({
                                 onViewChange("characters")
                               } else if (subItem.title === "Models") {
                                 onViewChange("models")
+                              } else if (subItem.title === "Connections") {
+                                onViewChange("mcp")
+                              } else if (subItem.title === "Servers") {
+                                onViewChange("mcp-servers")
+                              } else if (subItem.title === "Tools") {
+                                onViewChange("mcp-tools")
                               }
                             }
                           }}

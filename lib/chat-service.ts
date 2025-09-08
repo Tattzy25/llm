@@ -1,4 +1,5 @@
 // lib/chat-service.ts
+
 export interface ChatMessage {
   id: string
   content: string
@@ -14,13 +15,167 @@ export interface ChatSettings {
   endpoint?: string
   character?: string
   stream?: boolean
+  timeout?: number
+  retryAttempts?: number
+}
+
+export interface APIProvider {
+  name: string
+  baseUrl: string
+  authHeader: string
+  authPrefix: string
+  models: string[]
+  rateLimit?: {
+    requests: number
+    windowMs: number
+  }
 }
 
 export class ChatService {
   private settings: ChatSettings
+  private rateLimiters: Map<string, { count: number; resetTime: number }> = new Map()
+
+  // Production-grade API provider configurations
+  private static readonly PROVIDERS: Record<string, APIProvider> = {
+    openai: {
+      name: 'OpenAI',
+      baseUrl: 'https://api.openai.com/v1',
+      authHeader: 'Authorization',
+      authPrefix: 'Bearer',
+      models: ['gpt-4', 'gpt-4.1', 'gpt-5-2025-08-07', 'o3', 'o4-mini', 'gpt-4o-mini-tts'],
+      rateLimit: { requests: 100, windowMs: 60000 } // 100 requests per minute
+    },
+    anthropic: {
+      name: 'Anthropic',
+      baseUrl: 'https://api.anthropic.com/v1',
+      authHeader: 'x-api-key',
+      authPrefix: '',
+      models: ['claude-sonnet-4-20250514'],
+      rateLimit: { requests: 50, windowMs: 60000 } // 50 requests per minute
+    },
+    groq: {
+      name: 'Groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      authHeader: 'Authorization',
+      authPrefix: 'Bearer',
+      models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile', 'groq/compound', 'groq/compound-mini', 'meta-llama/llama-4-maverick-17b-128e-instruct', 'meta-llama/llama-4-scout-17b-16e-instruct'],
+      rateLimit: { requests: 30, windowMs: 60000 } // 30 requests per minute
+    },
+    relayavi: {
+      name: 'RelayAVI',
+      baseUrl: 'https://api.relayavi.com/v1',
+      authHeader: 'Authorization',
+      authPrefix: 'Bearer',
+      models: ['relayavi/ollamik'],
+      rateLimit: { requests: 100, windowMs: 60000 }
+    },
+    local: {
+      name: 'Local',
+      baseUrl: 'http://localhost:11434',
+      authHeader: '',
+      authPrefix: '',
+      models: ['gpt-oss-20b', 'gpt-oss-120b', 'deepseek-r1:671b', 'gemma3:27b', 'llama3:70b'],
+      rateLimit: { requests: 1000, windowMs: 60000 } // Higher limit for local
+    }
+  }
 
   constructor(settings: ChatSettings) {
-    this.settings = settings
+    this.settings = {
+      timeout: 30000, // 30 second default timeout
+      retryAttempts: 3, // 3 retry attempts by default
+      ...settings
+    }
+
+    // Validate environment setup
+    this.validateEnvironment()
+  }
+
+  private validateEnvironment(): void {
+    const requiredEnvVars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY']
+    const missingVars: string[] = []
+
+    for (const envVar of requiredEnvVars) {
+      if (!process.env[envVar] || process.env[envVar]?.startsWith('your_')) {
+        missingVars.push(envVar)
+      }
+    }
+
+    if (missingVars.length > 0) {
+      console.warn(`⚠️ Missing or placeholder API keys: ${missingVars.join(', ')}`)
+      console.warn('Please set these in your .env file for full functionality')
+    }
+  }
+
+  private getProvider(model: string): APIProvider | null {
+    for (const [key, provider] of Object.entries(ChatService.PROVIDERS)) {
+      if (provider.models.includes(model) || model.startsWith(key + '/')) {
+        return provider
+      }
+    }
+    return null
+  }
+
+  private async checkRateLimit(provider: APIProvider): Promise<void> {
+    if (!provider.rateLimit) return
+
+    const now = Date.now()
+    const key = provider.name
+    const limiter = this.rateLimiters.get(key)
+
+    if (!limiter || now > limiter.resetTime) {
+      this.rateLimiters.set(key, { count: 1, resetTime: now + provider.rateLimit.windowMs })
+      return
+    }
+
+    if (limiter.count >= provider.rateLimit.requests) {
+      const waitTime = limiter.resetTime - now
+      throw new Error(`Rate limit exceeded for ${provider.name}. Try again in ${Math.ceil(waitTime / 1000)} seconds.`)
+    }
+
+    limiter.count++
+  }
+
+  private async makeRequestWithRetry(
+    url: string,
+    options: RequestInit,
+    retryCount = 0
+  ): Promise<Response> {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), this.settings.timeout)
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        if (retryCount < (this.settings.retryAttempts || 3)) {
+          const retryAfter = response.headers.get('retry-after')
+          const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, retryCount) * 1000
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return this.makeRequestWithRetry(url, options, retryCount + 1)
+        }
+        throw new Error('Rate limit exceeded. Please try again later.')
+      }
+
+      // Handle other retryable errors
+      if (response.status >= 500 && retryCount < (this.settings.retryAttempts || 3)) {
+        const delay = Math.pow(2, retryCount) * 1000
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return this.makeRequestWithRetry(url, options, retryCount + 1)
+      }
+
+      return response
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${this.settings.timeout}ms`)
+      }
+      throw error
+    }
   }
 
   async sendMessage(message: string, onChunk?: (chunk: string) => void): Promise<string> {
@@ -31,7 +186,7 @@ export class ChatService {
       messages.push({
         id: 'system',
         content: systemMessage,
-        role: 'assistant', // Using assistant role for system messages in some APIs
+        role: 'assistant',
         timestamp: new Date()
       })
     }
@@ -47,8 +202,44 @@ export class ChatService {
       const response = await this.callAPI(messages, onChunk)
       return response
     } catch (error) {
-      console.error('Chat API error:', error)
-      throw new Error('Failed to get response from AI')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown chat error occurred'
+      console.error('[ChatService] Error:', errorMessage)
+
+      // Re-throw with enhanced error message
+      throw new Error(`[${this.getProvider(this.settings.model)?.name || 'Unknown'}] ${errorMessage}`)
+    }
+  }
+
+  // Get provider information for debugging
+  getProviderInfo(): { name: string; baseUrl: string; models: string[] } | null {
+    const provider = this.getProvider(this.settings.model)
+    return provider ? {
+      name: provider.name,
+      baseUrl: provider.baseUrl,
+      models: provider.models
+    } : null
+  }
+
+  // Check if current configuration is valid
+  isValidConfiguration(): { valid: boolean; errors: string[] } {
+    const errors: string[] = []
+    const provider = this.getProvider(this.settings.model)
+
+    if (!provider) {
+      errors.push(`Unsupported model: ${this.settings.model}`)
+    }
+
+    const envKey = provider ? this.getEnvKeyForProvider(provider) : ''
+    if (envKey) {
+      const apiKey = process.env[envKey]
+      if (!apiKey || apiKey.startsWith('your_')) {
+        errors.push(`Missing API key: ${envKey}`)
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
     }
   }
 
@@ -71,80 +262,104 @@ export class ChatService {
   private async callAPI(messages: ChatMessage[], onChunk?: (chunk: string) => void): Promise<string> {
     const { model, apiKey, endpoint } = this.settings
 
-    // Determine API provider and endpoint
-    const isGroq = endpoint?.includes('groq.com') || model.startsWith('groq/')
-    const isAnthropic = endpoint?.includes('anthropic.com') || model.startsWith('claude-')
-    const isRelayAVI = model.startsWith('relayavi/')
+    // Get provider configuration
+    const provider = this.getProvider(model)
+    if (!provider) {
+      throw new Error(`Unsupported model: ${model}`)
+    }
 
-    let apiEndpoint: string
+    // Check rate limits
+    await this.checkRateLimit(provider)
+
+    // Get API key from environment or settings
+    let authKey = apiKey
+    if (!authKey) {
+      const envKey = this.getEnvKeyForProvider(provider)
+      if (envKey) {
+        authKey = process.env[envKey]
+      }
+    }
+
+    if (!authKey || authKey.startsWith('your_')) {
+      throw new Error(`API key not configured for ${provider.name}. Please set ${this.getEnvKeyForProvider(provider)} in your environment.`)
+    }
+
+    // Build endpoint URL
+    const apiEndpoint = this.buildEndpoint(provider, endpoint)
+
+    // Build headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     }
 
-    // Get API key from environment variables or settings
-    let authKey = apiKey
-    if (!authKey) {
-      if (isGroq) {
-        authKey = process.env.GROQ_API_KEY
-      } else if (isAnthropic) {
-        authKey = process.env.ANTHROPIC_API_KEY
-      } else if (isRelayAVI) {
-        authKey = process.env.RELAYAVI_API_KEY
+    if (provider.authHeader && authKey) {
+      const prefix = provider.authPrefix ? `${provider.authPrefix} ` : ''
+      headers[provider.authHeader] = `${prefix}${authKey}`
+    }
+
+    // Add provider-specific headers
+    if (provider.name === 'Anthropic') {
+      headers['anthropic-version'] = '2023-06-01'
+    }
+
+    const payload = this.buildPayload(messages, provider)
+
+    try {
+      const response = await this.makeRequestWithRetry(apiEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`${provider.name} API Error: ${response.status} - ${errorText}`)
+      }
+
+      if (onChunk && this.settings.stream) {
+        return this.handleStreamingResponse(response, onChunk, provider)
       } else {
-        authKey = process.env.OPENAI_API_KEY
+        return this.handleNonStreamingResponse(response, provider)
       }
-    }
-
-    if (isGroq) {
-      apiEndpoint = endpoint || process.env.CUSTOM_GROQ_ENDPOINT || 'https://api.groq.com/openai/v1/chat/completions'
-      if (authKey) {
-        headers['Authorization'] = `Bearer ${authKey}`
-      }
-    } else if (isAnthropic) {
-      apiEndpoint = endpoint || process.env.CUSTOM_ANTHROPIC_ENDPOINT || 'https://api.anthropic.com/v1/messages'
-      if (authKey) {
-        headers['x-api-key'] = authKey
-        headers['anthropic-version'] = '2023-06-01'
-      }
-    } else if (isRelayAVI) {
-      apiEndpoint = endpoint || process.env.RELAYAVI_ENDPOINT || 'https://api.relayavi.com/v1/chat/completions'
-      if (authKey) {
-        headers['Authorization'] = `Bearer ${authKey}`
-      }
-    } else {
-      // OpenAI and other providers
-      apiEndpoint = endpoint || process.env.CUSTOM_OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions'
-      if (authKey) {
-        headers['Authorization'] = `Bearer ${authKey}`
-      }
-    }
-
-    const payload = this.buildPayload(messages, isGroq, isAnthropic)
-
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`API Error: ${response.status} - ${error}`)
-    }
-
-    if (onChunk) {
-      return this.handleStreamingResponse(response, onChunk, isGroq, isAnthropic)
-    } else {
-      return this.handleNonStreamingResponse(response, isGroq, isAnthropic)
+    } catch (error) {
+      console.error(`[${provider.name}] API call failed:`, error)
+      throw error
     }
   }
 
-  private buildPayload(messages: ChatMessage[], isGroq: boolean, isAnthropic: boolean): Record<string, unknown> {
+  private getEnvKeyForProvider(provider: APIProvider): string {
+    switch (provider.name) {
+      case 'OpenAI': return 'OPENAI_API_KEY'
+      case 'Anthropic': return 'ANTHROPIC_API_KEY'
+      case 'Groq': return 'GROQ_API_KEY'
+      case 'RelayAVI': return 'RELAYAVI_API_KEY'
+      default: return ''
+    }
+  }
+
+  private buildEndpoint(provider: APIProvider, customEndpoint?: string): string {
+    if (customEndpoint) return customEndpoint
+
+    const endpointMap: Record<string, string> = {
+      'OpenAI': process.env.CUSTOM_OPENAI_ENDPOINT || `${provider.baseUrl}/chat/completions`,
+      'Anthropic': process.env.CUSTOM_ANTHROPIC_ENDPOINT || `${provider.baseUrl}/messages`,
+      'Groq': process.env.CUSTOM_GROQ_ENDPOINT || `${provider.baseUrl}/chat/completions`,
+      'RelayAVI': process.env.RELAYAVI_ENDPOINT || `${provider.baseUrl}/chat/completions`,
+      'Local': `${provider.baseUrl}/api/chat`
+    }
+
+    return endpointMap[provider.name] || provider.baseUrl
+  }
+
+  private buildPayload(messages: ChatMessage[], provider: APIProvider): Record<string, unknown> {
     const { model, temperature, maxTokens } = this.settings
 
-    if (isAnthropic) {
+    // Clean model name for API calls
+    const cleanModel = model.replace(/^(openai|groq|claude|relayavi|meta-llama)\//, '')
+
+    if (provider.name === 'Anthropic') {
       return {
-        model: model.replace('claude-', ''),
+        model: cleanModel,
         messages: messages.map(msg => ({
           role: msg.role,
           content: msg.content
@@ -154,9 +369,9 @@ export class ChatService {
         stream: !!this.settings.stream
       }
     } else {
-      // OpenAI and Groq format
+      // OpenAI, Groq, and other OpenAI-compatible formats
       return {
-        model: model,
+        model: cleanModel,
         messages: messages.map(msg => ({
           role: msg.role,
           content: msg.content
@@ -168,18 +383,18 @@ export class ChatService {
     }
   }
 
-  private async handleNonStreamingResponse(response: Response, isGroq: boolean, isAnthropic: boolean): Promise<string> {
-    if (isAnthropic) {
-      const data = await response.json()
-      return data.content[0]?.text || ''
+  private async handleNonStreamingResponse(response: Response, provider: APIProvider): Promise<string> {
+    const data = await response.json()
+
+    if (provider.name === 'Anthropic') {
+      return data.content?.[0]?.text || ''
     } else {
-      // OpenAI and Groq format
-      const data = await response.json()
-      return data.choices[0].message.content
+      // OpenAI, Groq, and other OpenAI-compatible formats
+      return data.choices?.[0]?.message?.content || ''
     }
   }
 
-  private async handleStreamingResponse(response: Response, onChunk: (chunk: string) => void, isGroq: boolean, isAnthropic: boolean): Promise<string> {
+  private async handleStreamingResponse(response: Response, onChunk: (chunk: string) => void, provider: APIProvider): Promise<string> {
     const reader = response.body?.getReader()
     const decoder = new TextDecoder()
     let fullResponse = ''
@@ -209,11 +424,11 @@ export class ChatService {
               const parsed = JSON.parse(data)
 
               let content = ''
-              if (isAnthropic) {
+              if (provider.name === 'Anthropic') {
                 content = parsed.delta?.text || ''
               } else {
-                // OpenAI and Groq format
-                content = parsed.choices[0]?.delta?.content || ''
+                // OpenAI, Groq, and other OpenAI-compatible formats
+                content = parsed.choices?.[0]?.delta?.content || ''
               }
 
               if (content) {

@@ -24,6 +24,20 @@ export interface Character {
   isCustom?: boolean
   createdAt?: string
   updatedAt?: string
+  // New capability and model fields
+  capabilities?: CharacterCapabilities
+  models?: string[] // Array of model IDs
+}
+
+export interface CharacterCapabilities {
+  voice?: boolean // STT/TTS capabilities
+  imageGeneration?: boolean // Can create/generate images
+  imageAnalysis?: boolean // Can analyze images (vision models)
+  fileProcessing?: boolean // Can process documents/files
+  deepResearch?: boolean // Enhanced research capabilities
+  codeExecution?: boolean // Can execute/run code
+  apiCalling?: boolean // Can make external API calls
+  webBrowsing?: boolean // Can browse the web
 }
 
 const defaultCharacters: Character[] = [
@@ -87,6 +101,70 @@ const colorOptions = [
   { name: "Gray", value: "bg-gray-500" }
 ]
 
+// Available models with their capabilities
+export const availableModels = [
+  {
+    id: "gpt-4",
+    name: "GPT-4",
+    provider: "OpenAI",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "gpt-4-vision",
+    name: "GPT-4 Vision",
+    provider: "OpenAI",
+    capabilities: ["text", "code", "reasoning", "vision", "image-analysis"]
+  },
+  {
+    id: "gpt-3.5-turbo",
+    name: "GPT-3.5 Turbo",
+    provider: "OpenAI",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "claude-3-opus",
+    name: "Claude 3 Opus",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "claude-3-sonnet",
+    name: "Claude 3 Sonnet",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "claude-3-haiku",
+    name: "Claude 3 Haiku",
+    provider: "Anthropic",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "groq-llama2-70b",
+    name: "Llama 2 70B",
+    provider: "Groq",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "groq-mixtral-8x7b",
+    name: "Mixtral 8x7B",
+    provider: "Groq",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "groq-gemma-7b",
+    name: "Gemma 7B",
+    provider: "Groq",
+    capabilities: ["text", "code"]
+  }
+]
+
 interface CharacterSelectorProps {
   selectedCharacter: string
   onCharacterSelect: (characterId: string) => void
@@ -119,7 +197,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       }
       return defaultCharacters
     } catch (error) {
-      showError(`Failed to load saved characters: ${error instanceof Error ? error.message : 'Unknown error'}. Using default characters.`)
+      showError(`Failed to load saved characters: ${error instanceof Error ? error.message : 'Unknown error'}. Using default characters.`, 'Character Storage')
       return defaultCharacters
     }
   })
@@ -133,7 +211,18 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     description: "",
     systemPrompt: "",
     icon: "Wrench",
-    color: "bg-orange-500"
+    color: "bg-orange-500",
+    capabilities: {
+      voice: false,
+      imageGeneration: false,
+      imageAnalysis: false,
+      fileProcessing: false,
+      deepResearch: false,
+      codeExecution: false,
+      apiCalling: false,
+      webBrowsing: false
+    } as CharacterCapabilities,
+    selectedModels: [] as string[]
   })
 
   // Save characters to localStorage (both custom and modified presets)
@@ -147,7 +236,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       const modifiedPresets = chars.filter(char => !char.isCustom && char.updatedAt)
       localStorage.setItem('modified-presets', JSON.stringify(modifiedPresets))
     } catch (error) {
-      showError(`Failed to save characters: ${error instanceof Error ? error.message : 'Storage quota exceeded or storage unavailable'}`)
+      showError(`Failed to save characters: ${error instanceof Error ? error.message : 'Storage quota exceeded or storage unavailable'}`, 'Character Storage')
     }
   }
 
@@ -159,7 +248,9 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
         return JSON.parse(saved)
       }
     } catch (error) {
-      console.warn('Failed to load modified presets:', error)
+      // Show error for corrupted modified presets data
+      showError(`Failed to load modified character presets: ${error instanceof Error ? error.message : 'Unknown error'}. Using default presets.`, 'Character Storage')
+      return []
     }
     return []
   }
@@ -195,7 +286,18 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       description: character.description,
       systemPrompt: character.systemPrompt,
       icon: iconName,
-      color: character.color
+      color: character.color,
+      capabilities: character.capabilities || {
+        voice: false,
+        imageGeneration: false,
+        imageAnalysis: false,
+        fileProcessing: false,
+        deepResearch: false,
+        codeExecution: false,
+        apiCalling: false,
+        webBrowsing: false
+      },
+      selectedModels: character.models || []
     })
     setIsEditDialogOpen(true)
   }
@@ -238,7 +340,18 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       description: "",
       systemPrompt: "",
       icon: "Wrench",
-      color: "bg-orange-500"
+      color: "bg-orange-500",
+      capabilities: {
+        voice: false,
+        imageGeneration: false,
+        imageAnalysis: false,
+        fileProcessing: false,
+        deepResearch: false,
+        codeExecution: false,
+        apiCalling: false,
+        webBrowsing: false
+      } as CharacterCapabilities,
+      selectedModels: [] as string[]
     })
   }
 

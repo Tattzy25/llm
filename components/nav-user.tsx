@@ -7,12 +7,12 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-  AlertTriangle,
 } from "lucide-react"
 
 import {
   Avatar,
   AvatarImage,
+  AvatarFallback,
 } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -29,7 +29,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useErrorHandler } from "@/components/error-boundary"
 
 export function NavUser({
   user,
@@ -41,7 +40,6 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const { showError } = useErrorHandler()
 
   return (
     <SidebarMenu>
@@ -56,11 +54,10 @@ export function NavUser({
                 <AvatarImage
                   src={user.avatar}
                   alt={user.name}
-                  onError={() => showError('Failed to load user avatar')}
                 />
-                <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted">
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                </div>
+                <AvatarFallback>
+                  {user.name.charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -81,11 +78,10 @@ export function NavUser({
                   <AvatarImage
                     src={user.avatar}
                     alt={user.name}
-                    onError={() => showError('Failed to load user avatar')}
                   />
-                  <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted">
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  </div>
+                  <AvatarFallback>
+                    {user.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>

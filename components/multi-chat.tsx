@@ -84,8 +84,8 @@ export function MultiChat({ selectedCharacter, selectedModel }: MultiChatProps) 
                 </Button>
               )}
             </CardHeader>
-            <CardContent className="flex-1 p-0">
-              <div className="h-full">
+            <CardContent className="flex-1 p-0 overflow-hidden">
+              <div className="h-full overflow-hidden">
                 <PartyLine
                   characterOverride={chatWindow.character}
                   modelOverride={chatWindow.model}

@@ -12,6 +12,7 @@ import {
   PieChart,
   Settings2,
   SquareTerminal,
+  Network,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -151,6 +152,25 @@ const data = {
         },
         {
           title: "Models",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "MCP",
+      url: "#",
+      icon: Network,
+      items: [
+        {
+          title: "Connections",
+          url: "#",
+        },
+        {
+          title: "Servers",
+          url: "#",
+        },
+        {
+          title: "Tools",
           url: "#",
         },
       ],
