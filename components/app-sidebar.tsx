@@ -136,6 +136,25 @@ const data = {
         },
       ],
     },
+    {
+      title: "Party Line",
+      url: "#",
+      icon: Bot,
+      items: [
+        {
+          title: "Chat",
+          url: "#",
+        },
+        {
+          title: "Characters",
+          url: "#",
+        },
+        {
+          title: "Models",
+          url: "#",
+        },
+      ],
+    },
   ],
   projects: [
     {
@@ -156,14 +175,14 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ onViewChange, ...props }: React.ComponentProps<typeof Sidebar> & { onViewChange?: (view: string) => void }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={data.navMain} onViewChange={onViewChange} />
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

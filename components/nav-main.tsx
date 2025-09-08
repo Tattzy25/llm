@@ -20,6 +20,7 @@ import {
 
 export function NavMain({
   items,
+  onViewChange,
 }: {
   items: {
     title: string
@@ -31,6 +32,7 @@ export function NavMain({
       url: string
     }[]
   }[]
+  onViewChange?: (view: string) => void
 }) {
   return (
     <SidebarGroup>
@@ -45,7 +47,16 @@ export function NavMain({
           >
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title}>
+                <SidebarMenuButton 
+                  tooltip={item.title}
+                  onClick={() => {
+                    if (item.title === "Party Line" && onViewChange) {
+                      onViewChange("partyline")
+                    } else if (onViewChange) {
+                      onViewChange("dashboard")
+                    }
+                  }}
+                >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -56,9 +67,22 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild>
-                        <a href={subItem.url}>
+                        <button 
+                          onClick={() => {
+                            if (onViewChange) {
+                              if (subItem.title === "Chat") {
+                                onViewChange("partyline")
+                              } else if (subItem.title === "Characters") {
+                                onViewChange("characters")
+                              } else if (subItem.title === "Models") {
+                                onViewChange("models")
+                              }
+                            }
+                          }}
+                          className="w-full text-left"
+                        >
                           <span>{subItem.title}</span>
-                        </a>
+                        </button>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   ))}
