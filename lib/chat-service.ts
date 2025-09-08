@@ -69,7 +69,7 @@ export class ChatService {
   }
 
   private async callAPI(messages: ChatMessage[], onChunk?: (chunk: string) => void): Promise<string> {
-    const { model, temperature, maxTokens, apiKey, endpoint } = this.settings
+    const { model, apiKey, endpoint } = this.settings
 
     // Determine API provider and endpoint
     const isGroq = endpoint?.includes('groq.com') || model.startsWith('groq/')
@@ -240,6 +240,7 @@ export class ChatService {
 
 // Predefined model configurations
 export const MODEL_CONFIGS = {
+  // OpenAI Models
   'gpt-4': {
     name: 'GPT-4',
     maxTokens: 8192,
@@ -270,54 +271,114 @@ export const MODEL_CONFIGS = {
     maxTokens: 4096,
     endpoint: 'https://api.openai.com/v1/audio/speech'
   },
+
+  // Anthropic Models
   'claude-sonnet-4-20250514': {
     name: 'Claude Sonnet 4 (2025-05-14)',
     maxTokens: 8192,
     endpoint: 'https://api.anthropic.com/v1/messages'
   },
-  'relayavi/ollamik': {
-    name: 'RelayAVI Ollamik',
-    maxTokens: 4096,
-    endpoint: 'https://api.relayavi.com/v1/chat/completions'
-  },
+
+  // Groq API Models
   'openai/gpt-oss-120b': {
     name: 'OpenAI GPT-OSS 120B',
     maxTokens: 65536,
+    contextWindow: 131072,
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'openai/gpt-oss-20b': {
     name: 'OpenAI GPT-OSS 20B',
     maxTokens: 65536,
+    contextWindow: 131072,
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'llama-3.3-70b-versatile': {
     name: 'Llama 3.3 70B Versatile',
     maxTokens: 32768,
+    contextWindow: 131072,
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'groq/compound': {
     name: 'Groq Compound',
     maxTokens: 8192,
+    contextWindow: 131072,
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'groq/compound-mini': {
     name: 'Groq Compound Mini',
     maxTokens: 8192,
+    contextWindow: 131072,
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'meta-llama/llama-4-maverick-17b-128e-instruct': {
     name: 'Meta Llama 4 Maverick 17B 128E Instruct',
     maxTokens: 8192,
+    contextWindow: 131072,
+    maxFileSize: '20 MB',
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
   'meta-llama/llama-4-scout-17b-16e-instruct': {
     name: 'Meta Llama 4 Scout 17B 16E Instruct',
     maxTokens: 8192,
+    contextWindow: 131072,
+    maxFileSize: '20 MB',
     endpoint: 'https://api.groq.com/openai/v1/chat/completions'
   },
-  'llama-2-7b': {
-    name: 'Llama 2 7B (Local)',
-    maxTokens: 2048,
-    endpoint: 'http://localhost:8080/completion'
+
+  // Ollama Local Models
+  'relayavi/ollamik': {
+    name: 'RelayAVI Ollamik',
+    maxTokens: 4096,
+    endpoint: 'https://api.relayavi.com/v1/chat/completions'
+  },
+  'gpt-oss-20b': {
+    name: 'GPT-OSS 20B (Local)',
+    maxTokens: 65536,
+    contextWindow: 131072,
+    endpoint: 'http://localhost:11434/api/chat'
+  },
+  'gpt-oss-120b': {
+    name: 'GPT-OSS 120B (Local)',
+    maxTokens: 65536,
+    contextWindow: 131072,
+    endpoint: 'http://localhost:11434/api/chat'
+  },
+  'deepseek-r1:671b': {
+    name: 'DeepSeek R1 671B (Local)',
+    maxTokens: 32768,
+    endpoint: 'http://localhost:11434/api/chat'
+  },
+  'gemma3:27b': {
+    name: 'Gemma 3 27B (Local)',
+    maxTokens: 8192,
+    endpoint: 'http://localhost:11434/api/chat'
+  },
+  'llama3:70b': {
+    name: 'Llama 3 70B (Local)',
+    maxTokens: 32768,
+    contextWindow: 131072,
+    endpoint: 'http://localhost:11434/api/chat'
   }
+}
+
+export interface ModelConfig {
+  name: string
+  maxTokens: number
+  contextWindow?: number
+  maxFileSize?: string
+  endpoint: string
+  provider?: string
+}
+
+// Custom model configurations (user can add their own)
+export const CUSTOM_MODELS: Record<string, ModelConfig> = {}
+
+// Function to add custom model
+export function addCustomModel(modelId: string, config: ModelConfig) {
+  CUSTOM_MODELS[modelId] = config
+}
+
+// Function to get all available models (predefined + custom)
+export function getAllModels() {
+  return { ...MODEL_CONFIGS, ...CUSTOM_MODELS }
 }

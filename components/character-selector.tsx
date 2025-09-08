@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
+import { useErrorHandler } from "@/components/error-boundary"
 
 export interface Character {
   id: string
@@ -92,15 +93,21 @@ interface CharacterSelectorProps {
 }
 
 export function CharacterSelector({ selectedCharacter, onCharacterSelect }: CharacterSelectorProps) {
+  const { showError } = useErrorHandler()
   const [characters, setCharacters] = React.useState<Character[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('custom-characters')
-      if (saved) {
-        const customChars = JSON.parse(saved)
-        return [...defaultCharacters, ...customChars]
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('custom-characters')
+        if (saved) {
+          const customChars = JSON.parse(saved)
+          return [...defaultCharacters, ...customChars]
+        }
       }
+      return defaultCharacters
+    } catch (error) {
+      showError(`Failed to load saved characters: ${error instanceof Error ? error.message : 'Unknown error'}. Using default characters.`)
+      return defaultCharacters
     }
-    return defaultCharacters
   })
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
@@ -116,8 +123,12 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
 
   // Save custom characters to localStorage
   const saveCustomCharacters = (chars: Character[]) => {
-    const customChars = chars.filter(char => char.isCustom)
-    localStorage.setItem('custom-characters', JSON.stringify(customChars))
+    try {
+      const customChars = chars.filter(char => char.isCustom)
+      localStorage.setItem('custom-characters', JSON.stringify(customChars))
+    } catch (error) {
+      showError(`Failed to save characters: ${error instanceof Error ? error.message : 'Storage quota exceeded or storage unavailable'}`)
+    }
   }
 
   const handleCreateCustomCharacter = () => {

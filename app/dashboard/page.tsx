@@ -78,7 +78,8 @@ export default function Page() {
         ) : activeView === "models" ? (
           <ModelSelector 
             selectedModel={selectedModel} 
-            onModelSelect={setSelectedModel} 
+            onModelSelect={setSelectedModel}
+            currentFeature={undefined}
           />
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

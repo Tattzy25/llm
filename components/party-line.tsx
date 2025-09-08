@@ -17,12 +17,14 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { ChatService, ChatMessage } from "@/lib/chat-service"
 import { getCharacters } from "@/lib/character-utils"
+import { useErrorHandler } from "@/components/error-boundary"
 
 export function PartyLine({ characterOverride, modelOverride, compact = false }: {
   characterOverride?: string
   modelOverride?: string
   compact?: boolean
 } = {}) {
+  const { showError } = useErrorHandler()
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -32,7 +34,14 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
   const [temperature, setTemperature] = React.useState([parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || "0.7")])
   const [maxTokens, setMaxTokens] = React.useState([parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || "4096")])
   const [apiKey, setApiKey] = React.useState("")
-  const [characters, setCharacters] = React.useState(() => getCharacters())
+  const [characters, setCharacters] = React.useState(() => {
+    try {
+      return getCharacters()
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Failed to load characters')
+      return []
+    }
+  })
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
   const chatService = React.useMemo(() => new ChatService({
@@ -89,9 +98,11 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
 
     } catch (error) {
       console.error("Chat error:", error)
+      const errorMsg = error instanceof Error ? error.message : 'Unknown chat error occurred'
+      showError(`Chat failed: ${errorMsg}`)
       const errorMessage: ChatMessage = {
         id: (Date.now() + 2).toString(),
-        content: "Sorry, I encountered an error. Please check your API key and try again.",
+        content: `Sorry, I encountered an error: ${errorMsg}. Please check your API key and try again.`,
         role: "assistant",
         timestamp: new Date()
       }
@@ -150,24 +161,38 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpt-4">GPT-4</SelectItem>
+                      {/* Recommended models for chat */}
+                      <SelectItem value="gpt-4">⭐ GPT-4 (Recommended for chat)</SelectItem>
+                      <SelectItem value="claude-sonnet-4-20250514">⭐ Claude Sonnet 4 (Recommended for chat)</SelectItem>
+                      <SelectItem value="llama-3.3-70b-versatile">⭐ Llama 3.3 70B (Recommended for chat)</SelectItem>
+                      <SelectItem value="groq/compound">⭐ Groq Compound (Recommended for chat)</SelectItem>
+
+                      {/* OpenAI Models */}
                       <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
                       <SelectItem value="gpt-5-2025-08-07">GPT-5 (2025-08-07)</SelectItem>
                       <SelectItem value="o3">O3</SelectItem>
                       <SelectItem value="o4-mini">O4 Mini</SelectItem>
                       <SelectItem value="gpt-4o-mini-tts">GPT-4o Mini TTS</SelectItem>
-                      <SelectItem value="claude-sonnet-4-20250514">Claude Sonnet 4</SelectItem>
-                      <SelectItem value="relayavi/ollamik">RelayAVI Ollamik</SelectItem>
+
+                      {/* Groq API Models */}
                       <SelectItem value="openai/gpt-oss-120b">OpenAI GPT-OSS 120B</SelectItem>
                       <SelectItem value="openai/gpt-oss-20b">OpenAI GPT-OSS 20B</SelectItem>
-                      <SelectItem value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</SelectItem>
-                      <SelectItem value="groq/compound">Groq Compound</SelectItem>
                       <SelectItem value="groq/compound-mini">Groq Compound Mini</SelectItem>
                       <SelectItem value="meta-llama/llama-4-maverick-17b-128e-instruct">Meta Llama 4 Maverick 17B</SelectItem>
                       <SelectItem value="meta-llama/llama-4-scout-17b-16e-instruct">Meta Llama 4 Scout 17B</SelectItem>
-                      <SelectItem value="llama-2-7b">Llama 2 7B (Local)</SelectItem>
+
+                      {/* Ollama Local Models */}
+                      <SelectItem value="relayavi/ollamik">RelayAVI Ollamik</SelectItem>
+                      <SelectItem value="gpt-oss-20b">GPT-OSS 20B (Local)</SelectItem>
+                      <SelectItem value="gpt-oss-120b">GPT-OSS 120B (Local)</SelectItem>
+                      <SelectItem value="deepseek-r1:671b">DeepSeek R1 671B (Local)</SelectItem>
+                      <SelectItem value="gemma3:27b">Gemma 3 27B (Local)</SelectItem>
+                      <SelectItem value="llama3:70b">Llama 3 70B (Local)</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⭐ Recommended models are optimized for conversational AI
+                  </p>
                 </div>
 
                 <div>

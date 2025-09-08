@@ -38,15 +38,18 @@ function AvatarFallback({
   className,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  // Fallback removed - use error handling instead
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        "bg-destructive/20 flex size-full items-center justify-center rounded-full border border-destructive/50",
         className
       )}
       {...props}
-    />
+    >
+      <span className="text-xs text-destructive">!</span>
+    </AvatarPrimitive.Fallback>
   )
 }
 
