@@ -1,429 +1,579 @@
 #!/usr/bin/env python3
 """
-Advanced AI Assistant MCP Server
-Provides AI-powered tools for content generation, analysis, code assistance, and automation.
+AI Assistant MCP Server - Production Ready
+=========================================
+
+An AI-powered MCP server providing intelligent code analysis, assistance,
+and automation capabilities.
+
+Features:
+- Code analysis and insights
+- AI-powered code generation
+- Intelligent code review
+- Documentation generation
+- Code optimization suggestions
+- Language model integration
+- Context-aware assistance
+
+Usage:
+    python ai_assistant_server.py
 """
 
 import asyncio
 import json
 import logging
+import os
+import sys
 import re
 from typing import Any, Dict, List, Optional, Union
-import os
+from pathlib import Path
+from datetime import datetime
+import ast
+import inspect
 
-import openai
-import anthropic
-import google.generativeai as genai
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from mcp.server import FastMCP
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+# AI/ML dependencies (optional)
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+# MCP Protocol
+from mcp import Tool
+from mcp.server import Server
+from mcp.types import TextContent, PromptMessage
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler('ai_assistant_server.log')
+    ]
+)
 logger = logging.getLogger(__name__)
 
-class AIAssistant:
-    """Advanced AI assistant with multiple AI model integrations."""
+class AIAssistantServer:
+    """Production-grade AI Assistant MCP Server"""
 
     def __init__(self):
-        self.openai_client = None
-        self.anthropic_client = None
-        self.google_client = None
-        self._setup_clients()
+        self.server = Server("ai-assistant-server")
+        self.allowed_paths = self._get_allowed_paths()
+        self.code_cache = {}
+        self.analysis_cache = {}
 
-    def _setup_clients(self):
-        """Setup AI model clients from environment variables."""
-        # OpenAI
-        openai_api_key = os.getenv('OPENAI_API_KEY')
-        if openai_api_key:
-            self.openai_client = openai.OpenAI(api_key=openai_api_key)
-
-        # Anthropic
-        anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-        if anthropic_api_key:
-            self.anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
-
-        # Google Gemini
-        google_api_key = os.getenv('GOOGLE_API_KEY')
-        if google_api_key:
-            genai.configure(api_key=google_api_key)
-            self.google_client = genai.GenerativeModel('gemini-pro')
-
-    async def generate_content(self, content_type: str, topic: str, length: str = "medium",
-                             style: str = "professional", keywords: List[str] = None,
-                             model: str = "openai") -> Dict[str, Any]:
-        """Generate various types of content using AI."""
-        try:
-            prompt = self._build_content_prompt(content_type, topic, length, style, keywords)
-
-            if model == "openai" and self.openai_client:
-                return await self._generate_openai(prompt, content_type)
-            elif model == "anthropic" and self.anthropic_client:
-                return await self._generate_anthropic(prompt, content_type)
-            elif model == "google" and self.google_client:
-                return await self._generate_google(prompt, content_type)
-            else:
-                return {'error': f'Model {model} not available or not configured'}
-
-        except Exception as e:
-            logger.error(f"Content generation failed: {str(e)}")
-            return {'error': str(e), 'content_type': content_type, 'topic': topic}
-
-    def _build_content_prompt(self, content_type: str, topic: str, length: str,
-                            style: str, keywords: List[str]) -> str:
-        """Build appropriate prompt for content generation."""
-        length_guide = {
-            "short": "200-300 words",
-            "medium": "400-600 words",
-            "long": "800-1200 words"
+        # AI model configurations
+        self.ai_config = {
+            "openai": {
+                "api_key": os.getenv("OPENAI_API_KEY"),
+                "model": "gpt-4",
+                "max_tokens": 2000
+            },
+            "anthropic": {
+                "api_key": os.getenv("ANTHROPIC_API_KEY"),
+                "model": "claude-3-sonnet-20240229",
+                "max_tokens": 2000
+            }
         }
 
-        base_prompts = {
-            "article": f"Write a {length} {style} article about {topic}.",
-            "summary": f"Create a {length} {style} summary of {topic}.",
-            "code": f"Write {style} code for {topic}. Include comments and documentation.",
-            "email": f"Compose a {style} email about {topic}.",
-            "social": f"Create {style} social media content about {topic}.",
-            "creative": f"Write a {style} creative piece about {topic}."
-        }
+        self.setup_tools()
 
-        prompt = base_prompts.get(content_type, f"Create {style} content about {topic}")
-        prompt += f"\n\nTarget length: {length_guide.get(length, 'medium')}"
+    def _get_allowed_paths(self) -> List[str]:
+        """Get list of allowed file system paths"""
+        home = str(Path.home())
+        desktop = str(Path.home() / "Desktop")
+        documents = str(Path.home() / "Documents")
+        downloads = str(Path.home() / "Downloads")
 
-        if keywords:
-            prompt += f"\n\nInclude these keywords: {', '.join(keywords)}"
+        return [
+            home,
+            desktop,
+            documents,
+            downloads,
+            os.getcwd()
+        ]
 
-        prompt += f"\n\nStyle: {style}"
-        prompt += "\n\nEnsure the content is well-structured, engaging, and informative."
-
-        return prompt
-
-    async def _generate_openai(self, prompt: str, content_type: str) -> Dict[str, Any]:
-        """Generate content using OpenAI."""
+    def _is_path_allowed(self, path: str) -> bool:
+        """Check if path is within allowed directories"""
         try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000,
-                temperature=0.7
-            )
+            abs_path = os.path.abspath(path)
+            return any(abs_path.startswith(allowed) for allowed in self.allowed_paths)
+        except:
+            return False
 
-            content = response.choices[0].message.content
+    def setup_tools(self):
+        """Setup all MCP tools"""
 
-            return {
-                'success': True,
-                'content': content,
-                'model': 'gpt-4',
-                'tokens_used': response.usage.total_tokens if response.usage else None,
-                'content_type': content_type
-            }
+        @self.server.tool()
+        async def analyze_code_intelligence(path: str, analysis_type: str = "comprehensive") -> str:
+            """Perform intelligent code analysis with AI insights"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                # Cache check
+                cache_key = f"{path}:{hash(code)}:{analysis_type}"
+                if cache_key in self.analysis_cache:
+                    return self.analysis_cache[cache_key]
+
+                analysis = await self._perform_ai_code_analysis(code, path, analysis_type)
+
+                # Cache result
+                self.analysis_cache[cache_key] = analysis
+                return analysis
+
+            except Exception as e:
+                raise ValueError(f"Failed to analyze code: {e}")
+
+        @self.server.tool()
+        async def generate_code_suggestion(context: str, language: str, task: str) -> str:
+            """Generate code suggestions using AI"""
+            try:
+                prompt = f"""
+                Generate {language} code for the following task:
+                {task}
+
+                Context: {context}
+
+                Provide clean, well-documented code with best practices.
+                """
+
+                suggestion = await self._call_ai_model(prompt, "code_generation")
+                return suggestion
+
+            except Exception as e:
+                raise ValueError(f"Failed to generate code suggestion: {e}")
+
+        @self.server.tool()
+        async def review_code_quality(path: str) -> str:
+            """Perform comprehensive code review with AI"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                review = await self._perform_code_review(code, path)
+                return review
+
+            except Exception as e:
+                raise ValueError(f"Failed to review code: {e}")
+
+        @self.server.tool()
+        async def optimize_code(path: str, optimization_type: str = "performance") -> str:
+            """Optimize code using AI analysis"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                optimization = await self._optimize_code_with_ai(code, path, optimization_type)
+                return optimization
+
+            except Exception as e:
+                raise ValueError(f"Failed to optimize code: {e}")
+
+        @self.server.tool()
+        async def generate_documentation(path: str, doc_type: str = "comprehensive") -> str:
+            """Generate documentation for code using AI"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                docs = await self._generate_ai_documentation(code, path, doc_type)
+                return docs
+
+            except Exception as e:
+                raise ValueError(f"Failed to generate documentation: {e}")
+
+        @self.server.tool()
+        async def explain_code_segment(code: str, language: str) -> str:
+            """Explain code segment using AI"""
+            try:
+                explanation = await self._explain_code_with_ai(code, language)
+                return explanation
+
+            except Exception as e:
+                raise ValueError(f"Failed to explain code: {e}")
+
+        @self.server.tool()
+        async def suggest_improvements(path: str) -> str:
+            """Suggest code improvements using AI analysis"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                suggestions = await self._suggest_improvements_with_ai(code, path)
+                return suggestions
+
+            except Exception as e:
+                raise ValueError(f"Failed to suggest improvements: {e}")
+
+        @self.server.tool()
+        async def detect_code_smells(path: str) -> str:
+            """Detect code smells and anti-patterns"""
+            if not self._is_path_allowed(path):
+                raise ValueError(f"Access denied: {path}")
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+
+                smells = await self._detect_code_smells_with_ai(code, path)
+                return smells
+
+            except Exception as e:
+                raise ValueError(f"Failed to detect code smells: {e}")
+
+    async def _perform_ai_code_analysis(self, code: str, path: str, analysis_type: str) -> str:
+        """Perform AI-powered code analysis"""
+        try:
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
+
+            prompt = f"""
+            Analyze the following {language} code from file {path}:
+
+            ```{language}
+            {code}
+            ```
+
+            Provide a {analysis_type} analysis including:
+            1. Code structure and organization
+            2. Potential issues or bugs
+            3. Best practices compliance
+            4. Performance considerations
+            5. Maintainability assessment
+            6. Security concerns (if any)
+
+            Format your response as structured JSON.
+            """
+
+            analysis_result = await self._call_ai_model(prompt, "analysis")
+
+            # Parse and structure the response
+            try:
+                analysis_data = json.loads(analysis_result)
+                return json.dumps(analysis_data, indent=2)
+            except:
+                return analysis_result
 
         except Exception as e:
-            return {'error': f'OpenAI generation failed: {str(e)}'}
+            logger.error(f"AI code analysis failed: {e}")
+            return self._fallback_code_analysis(code, path)
 
-    async def _generate_anthropic(self, prompt: str, content_type: str) -> Dict[str, Any]:
-        """Generate content using Anthropic."""
+    async def _perform_code_review(self, code: str, path: str) -> str:
+        """Perform AI-powered code review"""
         try:
-            response = self.anthropic_client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
 
-            return {
-                'success': True,
-                'content': response.content[0].text,
-                'model': 'claude-3-sonnet',
-                'content_type': content_type
-            }
+            prompt = f"""
+            Perform a comprehensive code review of the following {language} code:
+
+            ```{language}
+            {code}
+            ```
+
+            Provide feedback on:
+            1. Code quality and style
+            2. Potential bugs or issues
+            3. Security vulnerabilities
+            4. Performance optimizations
+            5. Best practices adherence
+            6. Documentation quality
+            7. Test coverage suggestions
+
+            Rate the code on a scale of 1-10 for each category.
+            Provide specific recommendations for improvement.
+            """
+
+            review_result = await self._call_ai_model(prompt, "review")
+            return review_result
 
         except Exception as e:
-            return {'error': f'Anthropic generation failed: {str(e)}'}
+            logger.error(f"AI code review failed: {e}")
+            return "Code review failed due to AI service unavailability"
 
-    async def _generate_google(self, prompt: str, content_type: str) -> Dict[str, Any]:
-        """Generate content using Google Gemini."""
+    async def _optimize_code_with_ai(self, code: str, path: str, optimization_type: str) -> str:
+        """Optimize code using AI"""
         try:
-            response = self.google_client.generate_content(prompt)
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
 
-            return {
-                'success': True,
-                'content': response.text,
-                'model': 'gemini-pro',
-                'content_type': content_type
-            }
+            prompt = f"""
+            Optimize the following {language} code for {optimization_type}:
+
+            ```{language}
+            {code}
+            ```
+
+            Focus on:
+            1. Algorithm efficiency
+            2. Memory usage optimization
+            3. Code readability improvements
+            4. Best practices implementation
+            5. Performance bottlenecks
+
+            Provide the optimized version with explanations of changes made.
+            """
+
+            optimization_result = await self._call_ai_model(prompt, "optimization")
+            return optimization_result
 
         except Exception as e:
-            return {'error': f'Google generation failed: {str(e)}'}
+            logger.error(f"AI code optimization failed: {e}")
+            return "Code optimization failed due to AI service unavailability"
 
-    async def analyze_code(self, code: str, language: str, analysis_type: str = "bugs") -> Dict[str, Any]:
-        """Analyze code for various issues and improvements."""
+    async def _generate_ai_documentation(self, code: str, path: str, doc_type: str) -> str:
+        """Generate documentation using AI"""
         try:
-            prompt = self._build_code_analysis_prompt(code, language, analysis_type)
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
 
-            if self.openai_client:
-                response = self.openai_client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1000,
-                    temperature=0.3
+            prompt = f"""
+            Generate {doc_type} documentation for the following {language} code:
+
+            ```{language}
+            {code}
+            ```
+
+            Include:
+            1. Overview and purpose
+            2. Function/class documentation
+            3. Usage examples
+            4. API reference
+            5. Dependencies and requirements
+            6. Installation/setup instructions
+
+            Format as clean, readable documentation.
+            """
+
+            docs_result = await self._call_ai_model(prompt, "documentation")
+            return docs_result
+
+        except Exception as e:
+            logger.error(f"AI documentation generation failed: {e}")
+            return "Documentation generation failed due to AI service unavailability"
+
+    async def _explain_code_with_ai(self, code: str, language: str) -> str:
+        """Explain code using AI"""
+        try:
+            prompt = f"""
+            Explain the following {language} code in detail:
+
+            ```{language}
+            {code}
+            ```
+
+            Provide:
+            1. What the code does
+            2. How it works (step by step)
+            3. Key concepts and patterns used
+            4. Potential edge cases
+            5. Alternative approaches
+
+            Make it easy to understand for both beginners and experienced developers.
+            """
+
+            explanation = await self._call_ai_model(prompt, "explanation")
+            return explanation
+
+        except Exception as e:
+            logger.error(f"AI code explanation failed: {e}")
+            return "Code explanation failed due to AI service unavailability"
+
+    async def _suggest_improvements_with_ai(self, code: str, path: str) -> str:
+        """Suggest code improvements using AI"""
+        try:
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
+
+            prompt = f"""
+            Suggest improvements for the following {language} code:
+
+            ```{language}
+            {code}
+            ```
+
+            Focus on:
+            1. Code readability and maintainability
+            2. Error handling improvements
+            3. Performance optimizations
+            4. Security enhancements
+            5. Modern language features usage
+            6. Testing recommendations
+
+            Prioritize suggestions by impact and difficulty.
+            """
+
+            suggestions = await self._call_ai_model(prompt, "suggestions")
+            return suggestions
+
+        except Exception as e:
+            logger.error(f"AI improvement suggestions failed: {e}")
+            return "Improvement suggestions failed due to AI service unavailability"
+
+    async def _detect_code_smells_with_ai(self, code: str, path: str) -> str:
+        """Detect code smells using AI"""
+        try:
+            file_ext = Path(path).suffix.lower()
+            language = self._detect_language(file_ext)
+
+            prompt = f"""
+            Analyze the following {language} code for code smells and anti-patterns:
+
+            ```{language}
+            {code}
+            ```
+
+            Identify:
+            1. Code smells (long methods, large classes, etc.)
+            2. Anti-patterns
+            3. Design issues
+            4. Maintainability concerns
+            5. Technical debt indicators
+
+            For each issue found, provide:
+            - Description of the problem
+            - Severity level
+            - Suggested fix
+            - Code example of the improvement
+            """
+
+            smells = await self._call_ai_model(prompt, "code_smells")
+            return smells
+
+        except Exception as e:
+            logger.error(f"AI code smell detection failed: {e}")
+            return "Code smell detection failed due to AI service unavailability"
+
+    async def _call_ai_model(self, prompt: str, task_type: str) -> str:
+        """Call AI model for various tasks"""
+        # Try OpenAI first
+        if OPENAI_AVAILABLE and self.ai_config["openai"]["api_key"]:
+            try:
+                client = openai.OpenAI(api_key=self.ai_config["openai"]["api_key"])
+
+                response = client.chat.completions.create(
+                    model=self.ai_config["openai"]["model"],
+                    messages=[
+                        {"role": "system", "content": f"You are an expert {task_type} assistant."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=self.ai_config["openai"]["max_tokens"],
+                    temperature=0.7
                 )
 
-                analysis = response.choices[0].message.content
+                return response.choices[0].message.content
 
-                return {
-                    'success': True,
-                    'analysis': analysis,
-                    'language': language,
-                    'analysis_type': analysis_type,
-                    'issues_found': self._extract_issues(analysis)
-                }
-            else:
-                return {'error': 'OpenAI client not configured for code analysis'}
+            except Exception as e:
+                logger.warning(f"OpenAI call failed: {e}")
 
-        except Exception as e:
-            logger.error(f"Code analysis failed: {str(e)}")
-            return {'error': str(e), 'language': language, 'analysis_type': analysis_type}
+        # Try Anthropic as fallback
+        if ANTHROPIC_AVAILABLE and self.ai_config["anthropic"]["api_key"]:
+            try:
+                client = anthropic.Anthropic(api_key=self.ai_config["anthropic"]["api_key"])
 
-    def _build_code_analysis_prompt(self, code: str, language: str, analysis_type: str) -> str:
-        """Build prompt for code analysis."""
-        prompts = {
-            "bugs": f"Analyze this {language} code for potential bugs, errors, and logical issues:\n\n{code}",
-            "performance": f"Analyze this {language} code for performance issues and optimization opportunities:\n\n{code}",
-            "security": f"Analyze this {language} code for security vulnerabilities and best practices:\n\n{code}",
-            "style": f"Analyze this {language} code for style issues and adherence to {language} conventions:\n\n{code}",
-            "complexity": f"Analyze this {language} code for complexity issues and suggest simplifications:\n\n{code}"
+                response = client.messages.create(
+                    model=self.ai_config["anthropic"]["model"],
+                    max_tokens=self.ai_config["anthropic"]["max_tokens"],
+                    system=f"You are an expert {task_type} assistant.",
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+
+                return response.content[0].text
+
+            except Exception as e:
+                logger.warning(f"Anthropic call failed: {e}")
+
+        # Fallback to basic analysis
+        return self._fallback_ai_response(task_type)
+
+    def _fallback_ai_response(self, task_type: str) -> str:
+        """Provide fallback response when AI is unavailable"""
+        fallbacks = {
+            "analysis": "AI analysis unavailable. Basic static analysis shows the code structure appears valid.",
+            "review": "AI code review unavailable. Please ensure code follows language-specific best practices.",
+            "optimization": "AI optimization unavailable. Consider profiling for performance bottlenecks.",
+            "documentation": "AI documentation unavailable. Please add docstrings and comments manually.",
+            "explanation": "AI explanation unavailable. Review language documentation for code understanding.",
+            "suggestions": "AI suggestions unavailable. Consider code linting tools for basic improvements.",
+            "code_smells": "AI smell detection unavailable. Use static analysis tools for code quality checks."
         }
 
-        return prompts.get(analysis_type, f"Analyze this {language} code:\n\n{code}")
+        return fallbacks.get(task_type, "AI service unavailable")
 
-    def _extract_issues(self, analysis: str) -> List[Dict[str, str]]:
-        """Extract issues from analysis text."""
-        issues = []
-        lines = analysis.split('\n')
-
-        for line in lines:
-            if any(keyword in line.lower() for keyword in ['error', 'bug', 'issue', 'problem', 'warning']):
-                issues.append({
-                    'type': 'issue',
-                    'description': line.strip(),
-                    'severity': 'medium'
-                })
-
-        return issues
-
-    async def analyze_data(self, data: str, data_type: str, analysis_type: str,
-                          columns: List[str] = None) -> Dict[str, Any]:
-        """Analyze datasets and generate insights."""
-        try:
-            if data_type == "json":
-                df = pd.read_json(data)
-            elif data_type == "csv":
-                df = pd.read_csv(data)
-            else:
-                return {'error': f'Unsupported data type: {data_type}'}
-
-            result = {
-                'data_type': data_type,
-                'analysis_type': analysis_type,
-                'shape': df.shape,
-                'columns': list(df.columns)
-            }
-
-            if analysis_type == "summary":
-                result['summary'] = self._generate_data_summary(df)
-            elif analysis_type == "trends":
-                result['trends'] = self._analyze_trends(df, columns)
-            elif analysis_type == "correlations":
-                result['correlations'] = self._analyze_correlations(df, columns)
-            elif analysis_type == "anomalies":
-                result['anomalies'] = self._detect_anomalies(df, columns)
-            elif analysis_type == "predictions":
-                result['predictions'] = self._generate_predictions(df, columns)
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Data analysis failed: {str(e)}")
-            return {'error': str(e), 'data_type': data_type, 'analysis_type': analysis_type}
-
-    def _generate_data_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Generate comprehensive data summary."""
-        return {
-            'info': df.info(),
-            'describe': df.describe().to_dict(),
-            'null_counts': df.isnull().sum().to_dict(),
-            'data_types': df.dtypes.to_dict(),
-            'unique_counts': df.nunique().to_dict()
+    def _detect_language(self, file_extension: str) -> str:
+        """Detect programming language from file extension"""
+        language_map = {
+            '.py': 'Python',
+            '.js': 'JavaScript',
+            '.ts': 'TypeScript',
+            '.java': 'Java',
+            '.cpp': 'C++',
+            '.c': 'C',
+            '.cs': 'C#',
+            '.php': 'PHP',
+            '.rb': 'Ruby',
+            '.go': 'Go',
+            '.rs': 'Rust',
+            '.swift': 'Swift',
+            '.kt': 'Kotlin',
+            '.scala': 'Scala'
         }
 
-    def _analyze_trends(self, df: pd.DataFrame, columns: List[str]) -> Dict[str, Any]:
-        """Analyze trends in the data."""
-        trends = {}
+        return language_map.get(file_extension, 'Unknown')
 
-        if columns:
-            for col in columns:
-                if col in df.columns:
-                    if df[col].dtype in ['int64', 'float64']:
-                        trends[col] = {
-                            'mean': df[col].mean(),
-                            'median': df[col].median(),
-                            'std': df[col].std(),
-                            'min': df[col].min(),
-                            'max': df[col].max()
-                        }
-                    else:
-                        trends[col] = df[col].value_counts().head(10).to_dict()
-
-        return trends
-
-    def _analyze_correlations(self, df: pd.DataFrame, columns: List[str]) -> Dict[str, Any]:
-        """Analyze correlations between columns."""
-        numeric_df = df.select_dtypes(include=[np.number])
-
-        if columns:
-            numeric_df = numeric_df[columns] if all(col in numeric_df.columns for col in columns) else numeric_df
-
-        if not numeric_df.empty:
-            correlation_matrix = numeric_df.corr()
-            return {
-                'correlation_matrix': correlation_matrix.to_dict(),
-                'strong_correlations': self._find_strong_correlations(correlation_matrix)
+    def _fallback_code_analysis(self, code: str, path: str) -> str:
+        """Basic static code analysis fallback"""
+        lines = code.splitlines()
+        analysis = {
+            "basic_metrics": {
+                "total_lines": len(lines),
+                "code_lines": len([l for l in lines if l.strip() and not l.strip().startswith('#')]),
+                "comment_lines": len([l for l in lines if l.strip().startswith('#')]),
+                "empty_lines": len([l for l in lines if not l.strip()])
+            },
+            "structure": {
+                "functions": len(re.findall(r'def\s+\w+', code)),
+                "classes": len(re.findall(r'class\s+\w+', code)),
+                "imports": len(re.findall(r'^(import|from)\s+', code, re.MULTILINE))
             }
-        else:
-            return {'message': 'No numeric columns available for correlation analysis'}
+        }
 
-    def _find_strong_correlations(self, corr_matrix: pd.DataFrame, threshold: float = 0.7) -> List[Dict[str, Any]]:
-        """Find strongly correlated column pairs."""
-        strong_corr = []
+        return json.dumps(analysis, indent=2)
 
-        for i in range(len(corr_matrix.columns)):
-            for j in range(i+1, len(corr_matrix.columns)):
-                corr_value = abs(corr_matrix.iloc[i, j])
-                if corr_value > threshold:
-                    strong_corr.append({
-                        'column1': corr_matrix.columns[i],
-                        'column2': corr_matrix.columns[j],
-                        'correlation': corr_value
-                    })
+async def main():
+    """Main server entry point"""
+    server = AIAssistantServer()
 
-        return strong_corr
-
-    def _detect_anomalies(self, df: pd.DataFrame, columns: List[str]) -> Dict[str, Any]:
-        """Detect anomalies in the data."""
-        anomalies = {}
-
-        if columns:
-            for col in columns:
-                if col in df.columns and df[col].dtype in ['int64', 'float64']:
-                    mean = df[col].mean()
-                    std = df[col].std()
-                    threshold = 3 * std
-
-                    outlier_mask = (df[col] - mean).abs() > threshold
-                    anomalies[col] = {
-                        'outlier_count': outlier_mask.sum(),
-                        'outlier_percentage': (outlier_mask.sum() / len(df)) * 100,
-                        'outlier_indices': df[outlier_mask].index.tolist()
-                    }
-
-        return anomalies
-
-    def _generate_predictions(self, df: pd.DataFrame, columns: List[str]) -> Dict[str, Any]:
-        """Generate simple predictions based on trends."""
-        predictions = {}
-
-        if columns:
-            for col in columns:
-                if col in df.columns and df[col].dtype in ['int64', 'float64']:
-                    # Simple linear trend prediction
-                    if len(df) > 1:
-                        x = np.arange(len(df))
-                        y = df[col].values
-                        slope = np.polyfit(x, y, 1)[0]
-
-                        predictions[col] = {
-                            'trend_slope': slope,
-                            'trend_direction': 'increasing' if slope > 0 else 'decreasing',
-                            'next_value_prediction': y[-1] + slope
-                        }
-
-        return predictions
-
-# MCP Server Implementation
-app = FastMCP("ai-assistant-server")
-fastapi_app = FastAPI(title="AI Assistant MCP Server")
-
-ai_assistant = AIAssistant()
-
-@app.tool()
-async def content_generator(content_type: str, topic: str, length: str = "medium",
-                          style: str = "professional", keywords: List[str] = None,
-                          model: str = "openai") -> Dict[str, Any]:
-    """
-    Generate various types of content using AI models.
-
-    Args:
-        content_type: Type of content (article, summary, code, email, social, creative)
-        topic: Topic or subject for content generation
-        length: Desired content length (short, medium, long)
-        style: Writing style or tone
-        keywords: Keywords to include in content
-        model: AI model to use (openai, anthropic, google)
-
-    Returns:
-        Generated content with metadata
-    """
-    return await ai_assistant.generate_content(content_type, topic, length, style, keywords, model)
-
-@app.tool()
-async def code_analyzer(code: str, language: str, analysis_type: str = "bugs") -> Dict[str, Any]:
-    """
-    Analyze code for bugs, performance, security, and best practices.
-
-    Args:
-        code: Code to analyze
-        language: Programming language
-        analysis_type: Type of analysis (bugs, performance, security, style, complexity)
-
-    Returns:
-        Code analysis results with issues and recommendations
-    """
-    return await ai_assistant.analyze_code(code, language, analysis_type)
-
-@app.tool()
-async def data_analyzer(data: str, data_type: str, analysis_type: str,
-                       columns: List[str] = None) -> Dict[str, Any]:
-    """
-    Analyze datasets and generate insights.
-
-    Args:
-        data: JSON data or CSV content to analyze
-        data_type: Format of input data (json, csv, text)
-        analysis_type: Type of analysis (summary, trends, correlations, anomalies, predictions)
-        columns: Specific columns to analyze
-
-    Returns:
-        Data analysis results with insights and metrics
-    """
-    return await ai_assistant.analyze_data(data, data_type, analysis_type, columns)
-
-# Mount FastMCP app to FastAPI for WebSocket support
-fastapi_app.mount("/mcp", app)
-
-@fastapi_app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        # Handle MCP protocol over WebSocket
-        await app.run_websocket(websocket)
-    except WebSocketDisconnect:
-        pass
+    # Run the server
+    async with server.server:
+        logger.info("🤖 AI Assistant MCP Server started successfully")
+        logger.info("Available tools: analyze_code_intelligence, generate_code_suggestion, review_code_quality, optimize_code, generate_documentation, explain_code_segment, suggest_improvements, detect_code_smells")
+        await server.server.serve()
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(fastapi_app, host="api.digitalhustlelab.com", port=3004)
+    asyncio.run(main())

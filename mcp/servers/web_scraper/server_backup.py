@@ -146,14 +146,43 @@ class WebScrapingTool:
             return [{'error': str(e)}]
 
     async def _search_google(self, query: str, max_results: int, safe_search: bool) -> List[Dict[str, str]]:
-        """Search using Google Custom Search API or scraping."""
-        # Note: In production, use Google Custom Search API
-        # For demo purposes, we'll use a simple approach
-        search_url = f"https://www.google.com/search?q={query}&num={max_results}"
-        if safe_search:
-            search_url += "&safe=active"
-
+        """Search using Google Custom Search API."""
         try:
+            import os
+
+            # Use environment variables for API keys
+            search_api_key = os.getenv('GOOGLE_SEARCH_API_KEY')
+            search_engine_id = os.getenv('GOOGLE_SEARCH_ENGINE_ID')
+
+            if search_api_key and search_engine_id:
+                # Use official Google Custom Search API
+                search_url = "https://www.googleapis.com/customsearch/v1"
+                params = {
+                    'key': search_api_key,
+                    'cx': search_engine_id,
+                    'q': query,
+                    'num': min(max_results, 10),
+                    'safe': 'active' if safe_search else 'off'
+                }
+
+                async with self.session.get(search_url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        results = []
+                        for item in data.get('items', []):
+                            results.append({
+                                'title': item.get('title', ''),
+                                'url': item.get('link', ''),
+                                'snippet': item.get('snippet', ''),
+                                'displayLink': item.get('displayLink', '')
+                            })
+                        return results
+
+            # Fallback to scraping if API keys not available
+            search_url = f"https://www.google.com/search?q={query}&num={max_results}"
+            if safe_search:
+                search_url += "&safe=active"
+
             async with self.session.get(search_url) as response:
                 html = await response.text()
 

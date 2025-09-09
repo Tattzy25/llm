@@ -125,21 +125,47 @@ class WebSearchTool(MCPTool):
         )
 
     async def execute(self, query: str, max_results: int = 10) -> Dict[str, Any]:
-        """Execute web search."""
+        """Execute web search using real search API."""
         try:
-            # Simple mock implementation - in real implementation, use search APIs
-            return {
-                "query": query,
-                "results": [
-                    {
-                        "title": f"Result {i+1} for {query}",
-                        "url": f"https://example.com/result{i+1}",
-                        "snippet": f"This is a sample result {i+1} for the query: {query}"
-                    }
-                    for i in range(min(max_results, 5))
-                ],
-                "total_results": min(max_results, 5)
+            import aiohttp
+            import os
+
+            # Use environment variables for API keys
+            search_api_key = os.getenv('GOOGLE_SEARCH_API_KEY') or os.getenv('SEARCH_API_KEY')
+            search_engine_id = os.getenv('GOOGLE_SEARCH_ENGINE_ID')
+
+            if not search_api_key or not search_engine_id:
+                return {"error": "Search API credentials not configured"}
+
+            # Real Google Custom Search API call
+            search_url = "https://www.googleapis.com/customsearch/v1"
+            params = {
+                'key': search_api_key,
+                'cx': search_engine_id,
+                'q': query,
+                'num': min(max_results, 10)
             }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        results = []
+                        for item in data.get('items', []):
+                            results.append({
+                                'title': item.get('title', ''),
+                                'url': item.get('link', ''),
+                                'snippet': item.get('snippet', '')
+                            })
+
+                        return {
+                            "query": query,
+                            "results": results,
+                            "total_results": len(results)
+                        }
+                    else:
+                        return {"error": f"Search API error: {response.status}"}
+
         except Exception as e:
             logger.error(f"Web search failed: {e}")
             return {"error": str(e)}
@@ -167,19 +193,65 @@ class DatabaseTool(MCPTool):
     async def execute(self, query: str, connection_string: str = "") -> Dict[str, Any]:
         """Execute database query."""
         try:
-            # Mock implementation - in real implementation, connect to actual database
             if not connection_string:
                 return {"error": "Connection string is required"}
 
-            # Simulate query execution
-            return {
-                "query": query,
-                "connection": connection_string,
-                "results": [
-                    {"id": 1, "name": "Sample Result", "value": "Mock data"}
-                ],
-                "affected_rows": 1
-            }
+            # Real database connection and query execution
+            import asyncpg
+            import aiosqlite
+            from urllib.parse import urlparse
+
+            parsed = urlparse(connection_string)
+
+            if parsed.scheme in ['postgresql', 'postgres']:
+                # PostgreSQL connection
+                conn = await asyncpg.connect(connection_string)
+                try:
+                    if query.strip().upper().startswith(('SELECT', 'SHOW', 'DESCRIBE')):
+                        rows = await conn.fetch(query)
+                        return {
+                            "query": query,
+                            "connection": connection_string,
+                            "results": [dict(row) for row in rows],
+                            "affected_rows": len(rows)
+                        }
+                    else:
+                        result = await conn.execute(query)
+                        return {
+                            "query": query,
+                            "connection": connection_string,
+                            "result": str(result),
+                            "affected_rows": result.split()[-1] if ' ' in str(result) else 0
+                        }
+                finally:
+                    await conn.close()
+
+            elif parsed.scheme == 'sqlite':
+                # SQLite connection
+                async with aiosqlite.connect(parsed.path.lstrip('/')) as db:
+                    if query.strip().upper().startswith(('SELECT', 'PRAGMA')):
+                        async with db.execute(query) as cursor:
+                            rows = await cursor.fetchall()
+                            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                            return {
+                                "query": query,
+                                "connection": connection_string,
+                                "results": [dict(zip(columns, row)) for row in rows],
+                                "affected_rows": len(rows)
+                            }
+                    else:
+                        await db.execute(query)
+                        await db.commit()
+                        return {
+                            "query": query,
+                            "connection": connection_string,
+                            "result": "Query executed successfully",
+                            "affected_rows": db.total_changes
+                        }
+
+            else:
+                return {"error": f"Unsupported database type: {parsed.scheme}"}
+
         except Exception as e:
             logger.error(f"Database query failed: {e}")
             return {"error": str(e)}

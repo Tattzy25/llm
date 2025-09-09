@@ -303,15 +303,25 @@ class MCPServerManager:
 
             server_config = self.running_servers[server_name]
 
-            # For this implementation, we'll simulate tool execution
-            # In a real implementation, you'd make actual MCP calls
+            # Real MCP tool execution - forward to actual server
+            import aiohttp
 
-            if server_config['type'] == 'desktop':
-                result = await self._execute_desktop_tool(server_config, tool_name, parameters)
-            elif server_config['type'] == 'remote':
-                result = await self._execute_remote_tool(server_config, tool_name, parameters)
-            else:
-                return {'error': f'Unsupported server type: {server_config["type"]}'}
+            server_url = server_config.get('endpoint', f"http://localhost:{server_config.get('port', 3000)}")
+
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    'tool_name': tool_name,
+                    'parameters': parameters,
+                    'server_type': server_config['type']
+                }
+
+                async with session.post(f"{server_url}/tools/execute", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result
+                    else:
+                        error_text = await response.text()
+                        return {'error': f'Server error: {response.status} - {error_text}'}
 
             return {
                 'server': server_name,

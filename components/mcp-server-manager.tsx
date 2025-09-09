@@ -74,24 +74,53 @@ export function MCPServerManager() {
   })
 
   const startServer = async (serverId: string) => {
-    setServers(prev => prev.map(server =>
-      server.id === serverId
-        ? { ...server, status: 'starting' as const }
-        : server
-    ))
+    const server = servers.find(s => s.id === serverId);
+    if (!server) return;
 
-    // Simulate server startup
-    setTimeout(() => {
-      setServers(prev => prev.map(server =>
-        server.id === serverId
+    setServers(prev => prev.map(s =>
+      s.id === serverId
+        ? { ...s, status: 'starting' as const }
+        : s
+    ));
+
+    try {
+      // Make actual HTTP request to start the server
+      const response = await fetch(`${process.env.MCP_SERVER_MANAGER_URL || 'http://localhost:3000'}/servers/${serverId}/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.MCP_API_KEY || ''}`
+        },
+        body: JSON.stringify({
+          port: server.port,
+          type: server.type,
+          config: server.config
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      setServers(prev => prev.map(s =>
+        s.id === serverId
           ? {
-              ...server,
+              ...s,
               status: 'running' as const,
-              endpoint: `ws://localhost:${server.port}`
+              endpoint: result.endpoint || `ws://localhost:${server.port}`
             }
-          : server
-      ))
-    }, 2000)
+          : s
+      ));
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      setServers(prev => prev.map(s =>
+        s.id === serverId
+          ? { ...s, status: 'error' as const }
+          : s
+      ));
+    }
   }
 
   const stopServer = async (serverId: string) => {

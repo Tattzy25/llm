@@ -76,20 +76,44 @@ class MCPManager {
   // Connect to an MCP server
   async connectServer(serverConfig: Omit<MCPServer, 'connected' | 'lastConnected'>): Promise<{ success: boolean; error?: string }> {
     try {
-      // For now, simulate connection - in production this would establish WebSocket
-      const server: MCPServer = {
-        ...serverConfig,
-        connected: true,
-        lastConnected: new Date()
-      }
+      // Establish real WebSocket connection to MCP server
+      const wsUrl = serverConfig.endpoint.replace(/^http/, 'ws');
+      const ws = new WebSocket(wsUrl);
 
-      this.servers.set(server.id, server)
-      console.log(`✅ Connected to MCP server: ${server.name}`)
-      return { success: true }
+      return new Promise((resolve) => {
+        ws.onopen = () => {
+          const server: MCPServer = {
+            ...serverConfig,
+            connected: true,
+            lastConnected: new Date()
+          };
+
+          this.servers.set(server.id, server);
+          this.connections.set(server.id, ws);
+          console.log(`✅ Connected to MCP server: ${server.name}`);
+          resolve({ success: true });
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket connection failed:', error);
+          resolve({
+            success: false,
+            error: 'Failed to establish WebSocket connection to MCP server'
+          });
+        };
+
+        ws.onclose = () => {
+          this.connections.delete(serverConfig.id);
+          const server = this.servers.get(serverConfig.id);
+          if (server) {
+            server.connected = false;
+          }
+        };
+      });
     } catch (error) {
-      const errorMsg = error instanceof Error ? errorUtils.getUserFriendlyErrorMessage(error) : 'Failed to connect to MCP server'
-      console.error('Failed to connect to MCP server:', error)
-      return { success: false, error: errorMsg }
+      const errorMsg = error instanceof Error ? errorUtils.getUserFriendlyErrorMessage(error) : 'Failed to connect to MCP server';
+      console.error('Failed to connect to MCP server:', error);
+      return { success: false, error: errorMsg };
     }
   }
 
