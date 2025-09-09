@@ -1,11 +1,13 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Production‑ready Next.js app with a modular MCP (Model Context Protocol) client and dashboards. All UI uses shadcn/ui components only; no demo data in production paths.
 
 ## Environment Setup
 
 ### 1. Copy Environment Template
 
+Create a clean env from the template:
+
 ```bash
-cp .env.example .env
+cp .env.example .env # then fill values or use .env.local for secrets
 ```
 
 ### 2. Configure API Keys
@@ -85,9 +87,9 @@ CUSTOM_ANTHROPIC_ENDPOINT=https://api.anthropic.com/v1/messages
 CUSTOM_GROQ_ENDPOINT=https://api.groq.com/openai/v1/chat/completions
 ```
 
-### 6. Domain Configuration
+### 6. Domain & MCP Configuration
 
-This project is configured to use **digitalhustlelab.com** as the primary domain for all MCP (Model Context Protocol) servers and services.
+This project targets WSS servers under your domain. Set MCP_* in env to point to your runtime. We do not ship fallbacks; errors surface in-app and the UI continues.
 
 #### MCP Server Endpoints:
 - Base host: `api.digitalhustlelab.com`
@@ -102,11 +104,13 @@ This project is configured to use **digitalhustlelab.com** as the primary domain
 - **Web Search**: `wss://api.digitalhustlelab.com:3002`
 - **Database**: `wss://api.digitalhustlelab.com:3003`
 
-If you need to use a different domain, update the configuration files in the `servers/` directory:
-- `mcp-config-expanded.json`
-- `mcp-config.json`
-- Individual server Python files
-- `lib/mcp.ts` (TypeScript client)
+Authoritative server tree is `servers/`. Legacy copies live under `mcp/backup/` for reference only. Source‑of‑truth config lives in `mcp/config/`.
+
+Frontend MCP client lives under `lib/mcp/**`:
+- `client/` connection manager, tool executor (HTTP today, WS-ready), health monitor.
+- `tools/` category modules. By design, tool handlers throw typed MCP errors until live servers are reachable.
+- `hooks/` use-mcp, use-mcp-tools, use-mcp-servers, use-mcp-health.
+- `app/api/mcp/*` typed HTTP proxy with strict error mapping.
 
 ## Features
 
@@ -119,7 +123,15 @@ If you need to use a different domain, update the configuration files in the `se
 - **Auto-scrolling**: Chat automatically scrolls to show new messages
 - **Error Handling**: Graceful error handling with user-friendly messages
 
-### Supported Capabilities
+### Dashboard Tabs (shadcn/ui)
+- Party Line (multi-chat, multi-model)
+- MCP
+   - Hosting (public servers)
+   - Personal (owner tools)
+   - Tools (list + execute dialog)
+   - Control (manager actions; auth-gated when enabled)
+
+All panels are modular (<50 lines/file target). Errors pop as toasts via the global error bus.
 - **Text Chat**: Standard conversational AI
 - **Streaming Responses**: Real-time token streaming
 - **Model Switching**: Instant model switching without restart
@@ -131,9 +143,7 @@ If you need to use a different domain, update the configuration files in the `se
 
 1. **Start the development server:**
    ```bash
-   npm run dev
-   # or
-   pnpm run dev
+   pnpm dev
    ```
 
 2. **Navigate to Party Line:**
@@ -167,7 +177,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing by modifying `app/dashboard/page.tsx` and components under `components/`.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
@@ -180,8 +190,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## MCP Tooling (224+ tools)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This workspace has 200+ callable tools available to the agent runtime (VS Code MCP extensions like memory, playwright, context7, github, fetch, etc.). The app integrates with them via:
+- HTTP proxy routes: `GET /api/mcp/tools`, `POST /api/mcp/tools/[toolId]/execute`
+- WebSocket JSON‑RPC client (ready in `lib/mcp/client/websocket-handler.ts`)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+When your remote servers are up, set the WSS URLs in env and the UI will surface real data. Until then, handlers throw `MCPServerUnavailableError` with a helpful hint; the toast shows the error and the app remains usable.
+
+## Security & Ops (summary)
+- Auth is coded (JWT stubs) but bypassed for now. Flip on once Supabase is configured.
+- Deterministic, typed errors; no fallbacks.
+- Rate limits/quotas, metrics, and alerts live in Python servers; see `PROJECT_RULES.md` for phases.

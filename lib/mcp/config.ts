@@ -88,23 +88,24 @@ export const getMCPConfig = () => {
       },
       WEB_SCRAPER: {
         ...MCP_CONFIG.WEB_SCRAPER,
-        endpoint: 'ws://localhost:3002',
-        httpUrl: 'http://localhost:3002'
+  // Route through Server Manager WS proxy to the desktop/web-scraper server
+  endpoint: 'ws://localhost:8000/ws/desktop',
+  httpUrl: 'http://localhost:8000'
       },
       DATABASE: {
         ...MCP_CONFIG.DATABASE,
-        endpoint: 'ws://localhost:3003',
-        httpUrl: 'http://localhost:3003'
+  endpoint: 'ws://localhost:8000/ws/database',
+  httpUrl: 'http://localhost:8000'
       },
       AI_ASSISTANT: {
         ...MCP_CONFIG.AI_ASSISTANT,
-        endpoint: 'ws://localhost:3004',
-        httpUrl: 'http://localhost:3004'
+  endpoint: 'ws://localhost:8000/ws/ai_assistant',
+  httpUrl: 'http://localhost:8000'
       },
       SERVER_MANAGER: {
         ...MCP_CONFIG.SERVER_MANAGER,
-        endpoint: 'ws://localhost:3000',
-        httpUrl: 'http://localhost:3000'
+  endpoint: 'ws://localhost:8000',
+  httpUrl: 'http://localhost:8000'
       }
     })
   }

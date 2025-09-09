@@ -85,11 +85,12 @@ export function MCPServerManager() {
 
     try {
       // Make actual HTTP request to start the server
-      const response = await fetch(`${process.env.MCP_SERVER_MANAGER_URL || 'http://localhost:3000'}/servers/${serverId}/start`, {
+    const baseUrl = process.env.NEXT_PUBLIC_MCP_SERVER_MANAGER_URL || 'http://localhost:3000'
+    const response = await fetch(`${baseUrl}/servers/${serverId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.MCP_API_KEY || ''}`
+      // Auth bypassed for now; when enabled, inject a short-lived JWT via server route, not client env
         },
         body: JSON.stringify({
           port: server.port,

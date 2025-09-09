@@ -108,6 +108,7 @@ export class MCPClient {
       toolName,
       parameters,
       serverConfig.httpUrl,
+      serverConfig.endpoint,
       serverConfig.timeout,
       serverConfig.retries
     )
