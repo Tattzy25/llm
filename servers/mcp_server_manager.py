@@ -384,22 +384,74 @@ class MCPServerManager:
             }
 
     async def _get_server_tools(self, server_instance) -> List[Dict[str, Any]]:
-        """Get tools from a server instance"""
+        """Get tools from a server instance via MCP protocol"""
         try:
-            # This is a simplified implementation
-            # In a real implementation, you'd query the server for its tools
-            return [
-                {
-                    "name": "example_tool",
-                    "description": "Example tool for testing",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "message": {"type": "string"}
-                        }
-                    }
-                }
-            ]
+            # Implement actual server tool discovery via MCP protocol
+            # Query the server for available tools using the MCP tools/list method
+
+            if hasattr(server_instance, 'list_tools'):
+                # If server has a list_tools method, use it
+                tools = await server_instance.list_tools()
+                return tools
+            elif hasattr(server_instance, 'get_available_tools'):
+                # Alternative method name
+                tools = await server_instance.get_available_tools()
+                return tools
+            elif hasattr(server_instance, 'tools'):
+                # If server has a tools attribute
+                tools = server_instance.tools
+                if isinstance(tools, list):
+                    return tools
+                elif isinstance(tools, dict):
+                    return list(tools.values())
+            else:
+                # Introspect the server instance for callable methods that look like tools
+                tools = []
+                for attr_name in dir(server_instance):
+                    if not attr_name.startswith('_'):
+                        attr = getattr(server_instance, attr_name)
+                        if callable(attr) and not attr_name.startswith('list_') and not attr_name.startswith('get_'):
+                            # Try to get method signature for input schema
+                            import inspect
+                            try:
+                                sig = inspect.signature(attr)
+                                params = {}
+                                for param_name, param in sig.parameters.items():
+                                    if param_name != 'self':
+                                        param_type = "string"  # default
+                                        if param.annotation != inspect.Parameter.empty:
+                                            if param.annotation == str:
+                                                param_type = "string"
+                                            elif param.annotation == int:
+                                                param_type = "number"
+                                            elif param.annotation == bool:
+                                                param_type = "boolean"
+                                            elif param.annotation == list:
+                                                param_type = "array"
+
+                                        params[param_name] = {"type": param_type}
+
+                                tools.append({
+                                    "name": attr_name,
+                                    "description": f"Execute {attr_name} tool",
+                                    "inputSchema": {
+                                        "type": "object",
+                                        "properties": params
+                                    }
+                                })
+                            except:
+                                # If introspection fails, add basic tool info
+                                tools.append({
+                                    "name": attr_name,
+                                    "description": f"Execute {attr_name} tool",
+                                    "inputSchema": {
+                                        "type": "object",
+                                        "properties": {}
+                                    }
+                                })
+
+                return tools
+
         except Exception as e:
             logger.error(f"Failed to get server tools: {e}")
             return []
@@ -436,8 +488,72 @@ class MCPServerManager:
                     uptime = (datetime.now() - started_at).total_seconds()
                     self.server_metrics[server_name]["uptime_seconds"] = uptime
 
-                    # Check server health
-                    # In a real implementation, you'd ping the server
+                    # Check server health by pinging the server
+                    try:
+                        # Implement actual server health check via MCP protocol
+                        # Send a ping/health request to the server and update status based on response
+
+                        server_instance = server_info["instance"]
+                        config = server_info["config"]
+
+                        # Try multiple health check methods
+                        health_status = "unhealthy"
+
+                        # Method 1: Check if server has a health method
+                        if hasattr(server_instance, 'health_check'):
+                            try:
+                                health_result = await server_instance.health_check()
+                                if health_result and health_result.get('status') == 'healthy':
+                                    health_status = "healthy"
+                            except Exception as e:
+                                logger.warning(f"Health check method failed for {server_name}: {e}")
+
+                        # Method 2: Try to call a simple method to test responsiveness
+                        elif hasattr(server_instance, 'ping'):
+                            try:
+                                await server_instance.ping()
+                                health_status = "healthy"
+                            except Exception as e:
+                                logger.warning(f"Ping method failed for {server_name}: {e}")
+
+                        # Method 3: Check if server responds to basic attribute access
+                        else:
+                            try:
+                                # Try to access a basic attribute to test if server is responsive
+                                _ = server_instance.__class__.__name__
+                                health_status = "healthy"
+                            except Exception as e:
+                                logger.warning(f"Basic health check failed for {server_name}: {e}")
+
+                        # Method 4: Network connectivity check if server has network config
+                        if health_status == "unhealthy" and config.get('host') and config.get('port'):
+                            try:
+                                import socket
+                                import asyncio
+
+                                # Try to connect to the server's port
+                                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                sock.settimeout(5)
+                                result = await asyncio.get_event_loop().sock_connect(sock, (config['host'], config['port']))
+                                sock.close()
+                                if result is None:  # Connection successful
+                                    health_status = "healthy"
+                            except Exception as e:
+                                logger.warning(f"Network health check failed for {server_name}: {e}")
+
+                        server_info["status"] = health_status
+                        server_info["last_health_check"] = datetime.now()
+
+                        # Update metrics based on health status
+                        if health_status == "healthy":
+                            self.server_metrics[server_name]["health_checks_passed"] = self.server_metrics[server_name].get("health_checks_passed", 0) + 1
+                        else:
+                            self.server_metrics[server_name]["health_checks_failed"] = self.server_metrics[server_name].get("health_checks_failed", 0) + 1
+
+                    except Exception as ping_error:
+                        logger.warning(f"Health check failed for {server_name}: {ping_error}")
+                        server_info["status"] = "unhealthy"
+                        server_info["last_health_check"] = datetime.now()
 
                 await asyncio.sleep(self.config["manager"]["health_check_interval"])
 

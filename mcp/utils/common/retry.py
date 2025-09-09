@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
-"""
-MCP Retry Utils
-===============
+"""Bounded retry helpers with jittered backoff."""
 
-Retry utilities with exponential backoff for MCP servers.
-"""
+from __future__ import annotations
 
+import random
 import time
-from typing import Callable, Any
+from typing import Callable, TypeVar, Iterable
+
+T = TypeVar("T")
 
 
-class MCPRetry:
-    """Retry utility with exponential backoff."""
-
-    def __init__(self, max_attempts: int = 3, base_delay: float = 1.0,
-                 max_delay: float = 60.0, backoff_factor: float = 2.0):
-        self.max_attempts = max_attempts
-        self.base_delay = base_delay
-        self.max_delay = max_delay
-        self.backoff_factor = backoff_factor
-
-    def execute(self, func: Callable, *args, **kwargs) -> Any:
-        """Execute function with retry logic."""
-        last_exception = None
-        for attempt in range(self.max_attempts):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                last_exception = e
-                if attempt < self.max_attempts - 1:
-                    delay = min(self.base_delay * (self.backoff_factor ** attempt), self.max_delay)
-                    time.sleep(delay)
-        raise last_exception
+def retry(
+	fn: Callable[[], T],
+	*,
+	retries: int = 3,
+	base_delay: float = 0.2,
+	max_delay: float = 2.0,
+	retry_on: Iterable[type[Exception]] = (Exception,),
+) -> T:
+	"""Run fn with limited retries and exponential backoff with jitter."""
+	attempt = 0
+	while True:
+		try:
+			return fn()
+		except tuple(retry_on) as e:
+			attempt += 1
+			if attempt > retries:
+				raise
+			delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+			delay *= 0.8 + random.random() * 0.4  # jitter
+			time.sleep(delay)

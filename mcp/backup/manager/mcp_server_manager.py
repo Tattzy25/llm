@@ -139,37 +139,87 @@ class MCPServerManager:
     async def _start_remote_server(self, server_config: Dict[str, Any]) -> Dict[str, Any]:
         """Start a remote MCP server."""
         try:
-            # For remote servers, we'll assume they're started externally
-            # In a real implementation, you might use Docker, systemd, etc.
+            # Implement remote server startup using Docker, systemd, or other orchestration tools
 
             host = server_config.get('host', 'digitalhustlelab.com')
             port = server_config.get('port', 3000)
+            startup_method = server_config.get('startup_method', 'docker')  # docker, systemd, manual
 
-            # Test connection
-            try:
-                response = requests.get(f"http://{host}:{port}/health", timeout=5)
-                if response.status_code == 200:
-                    return {
-                        'success': True,
-                        'server': server_config['name'],
-                        'type': 'remote',
-                        'host': host,
-                        'port': port,
-                        'status': 'running'
-                    }
+            if startup_method == 'docker':
+                # Try to start via Docker
+                container_name = f"mcp-{server_config['name'].lower().replace(' ', '-')}"
+                image_name = server_config.get('docker_image', f"mcp/{server_config['name'].lower()}")
+
+                # Check if container exists
+                result = subprocess.run(['docker', 'ps', '-a', '--filter', f'name={container_name}', '--format', '{{.Names}}'],
+                                      capture_output=True, text=True)
+
+                if container_name not in result.stdout:
+                    # Create and start container
+                    docker_cmd = [
+                        'docker', 'run', '-d',
+                        '--name', container_name,
+                        '-p', f'{port}:{port}',
+                        '--restart', 'unless-stopped',
+                        image_name
+                    ]
+                    subprocess.run(docker_cmd, check=True)
+                    logger.info(f"Started Docker container: {container_name}")
                 else:
-                    return {
-                        'success': False,
-                        'error': f'Server responded with status {response.status_code}'
-                    }
-            except requests.exceptions.RequestException:
-                return {
-                    'success': False,
-                    'error': 'Server not responding',
-                    'host': host,
-                    'port': port
-                }
+                    # Start existing container
+                    subprocess.run(['docker', 'start', container_name], check=True)
+                    logger.info(f"Started existing Docker container: {container_name}")
 
+            elif startup_method == 'systemd':
+                # Try to start via systemd
+                service_name = server_config.get('systemd_service', f"mcp-{server_config['name'].lower()}")
+                subprocess.run(['sudo', 'systemctl', 'start', service_name], check=True)
+                logger.info(f"Started systemd service: {service_name}")
+
+            elif startup_method == 'ssh':
+                # Try to start via SSH
+                ssh_host = server_config.get('ssh_host', host)
+                ssh_user = server_config.get('ssh_user', 'mcp')
+                startup_cmd = server_config.get('startup_command', f'cd /opt/mcp && ./start_{server_config["name"].lower()}.sh')
+
+                ssh_cmd = ['ssh', f'{ssh_user}@{ssh_host}', startup_cmd]
+                subprocess.run(ssh_cmd, check=True)
+                logger.info(f"Started server via SSH: {ssh_host}")
+
+            # Wait for server to be ready
+            import time
+            max_attempts = 30
+            for attempt in range(max_attempts):
+                try:
+                    response = requests.get(f"http://{host}:{port}/health", timeout=5)
+                    if response.status_code == 200:
+                        return {
+                            'success': True,
+                            'server': server_config['name'],
+                            'type': 'remote',
+                            'host': host,
+                            'port': port,
+                            'status': 'running',
+                            'startup_method': startup_method
+                        }
+                except requests.exceptions.RequestException:
+                    pass
+
+                time.sleep(2)  # Wait 2 seconds before retry
+
+            return {
+                'success': False,
+                'error': 'Server failed to start within timeout',
+                'host': host,
+                'port': port
+            }
+
+        except subprocess.CalledProcessError as e:
+            return {
+                'success': False,
+                'error': f'Failed to start server process: {e}',
+                'command': e.cmd if hasattr(e, 'cmd') else 'unknown'
+            }
         except Exception as e:
             return {'success': False, 'error': str(e)}
 

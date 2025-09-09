@@ -186,7 +186,7 @@
       "description": "Scrape websites, extract data, and analyze web content",
       "type": "remote",
       "transport": "websocket",
-      "host": "api.api.digitalhustlelab.com",
+  "host": "api.digitalhustlelab.com",
       "port": 3002,
       "tools": {
         "web_scrape": {
@@ -278,7 +278,7 @@
       "description": "Connect to various databases and execute queries",
       "type": "remote",
       "transport": "websocket",
-      "host": "api.api.digitalhustlelab.com",
+  "host": "api.digitalhustlelab.com",
       "port": 3003,
       "tools": {
         "database_query": {
@@ -369,7 +369,7 @@
       "description": "AI-powered tools for content generation, analysis, and automation",
       "type": "remote",
       "transport": "websocket",
-      "host": "api.api.digitalhustlelab.com",
+  "host": "api.digitalhustlelab.com",
       "port": 3004,
       "tools": {
         "content_generator": {
@@ -471,7 +471,7 @@
       "description": "Connect to external APIs and services",
       "type": "remote",
       "transport": "websocket",
-      "host": "api.api.digitalhustlelab.com",
+  "host": "api.digitalhustlelab.com",
       "port": 3005,
       "tools": {
         "api_call": {

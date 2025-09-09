@@ -54,9 +54,91 @@ class MCPToolExecutor:
 
     async def _execute_desktop_tool(self, server_config: Dict[str, Any],
                                    tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute tool on desktop server."""
-        # This implementation provides basic tool execution
-        # In a real implementation, you'd communicate with the actual MCP server process
+        """Execute tool on desktop server via WebSocket or HTTP API."""
+        # Implement actual communication with MCP server process via WebSocket or HTTP API
+
+        host = server_config.get('host', 'localhost')
+        port = server_config.get('port', 8001)
+        transport = server_config.get('transport', 'websocket')
+
+        try:
+            if transport == 'websocket':
+                return await self._execute_via_websocket(host, port, tool_name, parameters)
+            elif transport == 'http':
+                return await self._execute_via_http(host, port, tool_name, parameters)
+            else:
+                # Fallback to local implementation
+                return await self._execute_local_fallback(tool_name, parameters)
+
+        except Exception as e:
+            logger.error(f"Failed to communicate with desktop server: {e}")
+            # Fallback to local implementation
+            return await self._execute_local_fallback(tool_name, parameters)
+
+    async def _execute_via_websocket(self, host: str, port: int, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute tool via WebSocket connection."""
+        import websockets
+        import json
+
+        uri = f"ws://{host}:{port}/ws/desktop"
+
+        try:
+            async with websockets.connect(uri) as websocket:
+                # Send tool execution request
+                request = {
+                    "jsonrpc": "2.0",
+                    "id": f"tool_exec_{int(asyncio.get_event_loop().time())}",
+                    "method": "tools/call",
+                    "params": {
+                        "name": tool_name,
+                        "arguments": parameters
+                    }
+                }
+
+                await websocket.send(json.dumps(request))
+
+                # Receive response
+                response_text = await websocket.recv()
+                response = json.loads(response_text)
+
+                if 'result' in response:
+                    return response['result']
+                elif 'error' in response:
+                    raise Exception(f"WebSocket error: {response['error']}")
+                else:
+                    raise Exception("Invalid WebSocket response format")
+
+        except Exception as e:
+            raise Exception(f"WebSocket communication failed: {e}")
+
+    async def _execute_via_http(self, host: str, port: int, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute tool via HTTP API."""
+        import aiohttp
+        import json
+
+        url = f"http://{host}:{port}/tools/call"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                request_data = {
+                    "name": tool_name,
+                    "arguments": parameters
+                }
+
+                async with session.post(url, json=request_data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"HTTP error {response.status}: {error_text}")
+
+        except Exception as e:
+            raise Exception(f"HTTP communication failed: {e}")
+
+    async def _execute_local_fallback(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Fallback to local implementation when server communication fails."""
+        logger.warning(f"Using local fallback for tool: {tool_name}")
 
         if tool_name == 'file_operations':
             return await self._execute_file_operations(parameters)
@@ -71,7 +153,7 @@ class MCPToolExecutor:
         elif tool_name == 'web_scraping':
             return await self._execute_web_scraping(parameters)
         else:
-            return {'error': f'Unknown tool: {tool_name}'}
+            return {'error': f'Unknown tool: {tool_name}', 'fallback': True}
 
     async def _execute_file_operations(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute file system operations."""
@@ -136,54 +218,120 @@ class MCPToolExecutor:
             return {'error': str(e)}
 
     async def _execute_content_generation(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute content generation (placeholder for AI assistant integration)."""
+        """Execute content generation using AI assistant server."""
         content_type = parameters.get('type', 'text')
         prompt = parameters.get('prompt', '')
 
-        # This is a placeholder - in reality, you'd call the AI assistant server
+        if not prompt:
+            raise ValueError("Prompt parameter is required for content generation")
+
+        # Try to communicate with AI assistant server first
+        try:
+            ai_config = {
+                'host': 'localhost',
+                'port': 8002,
+                'transport': 'websocket'
+            }
+            return await self._execute_via_websocket(ai_config['host'], ai_config['port'], 'generate_content', parameters)
+        except Exception as e:
+            logger.warning(f"AI assistant server communication failed: {e}")
+
+        # Fallback to basic implementation
         return {
             'type': content_type,
             'prompt': prompt,
-            'generated_content': f'Generated {content_type} content for: {prompt}',
-            'status': 'placeholder_implementation'
+            'generated_content': f'Content generation for type "{content_type}" is not yet implemented. Prompt: {prompt}',
+            'status': 'fallback_implementation',
+            'error': 'AI assistant server integration failed'
         }
 
     async def _execute_code_analysis(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute code analysis (placeholder for AI assistant integration)."""
+        """Execute code analysis using AI assistant server."""
         code = parameters.get('code', '')
         language = parameters.get('language', 'python')
 
-        # This is a placeholder - in reality, you'd call the AI assistant server
+        if not code:
+            raise ValueError("Code parameter is required for code analysis")
+
+        # Try to communicate with AI assistant server first
+        try:
+            ai_config = {
+                'host': 'localhost',
+                'port': 8002,
+                'transport': 'websocket'
+            }
+            return await self._execute_via_websocket(ai_config['host'], ai_config['port'], 'analyze_code', parameters)
+        except Exception as e:
+            logger.warning(f"AI assistant server communication failed: {e}")
+
+        # Fallback to basic implementation
         return {
             'language': language,
             'code_length': len(code),
-            'analysis': 'placeholder_code_analysis',
+            'analysis': f'Code analysis for {language} is not yet implemented',
             'issues': [],
-            'status': 'placeholder_implementation'
+            'status': 'fallback_implementation',
+            'error': 'AI assistant server integration failed'
         }
 
     def _execute_data_analysis(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute data analysis (placeholder for AI assistant integration)."""
+        """Execute data analysis using AI assistant server."""
         data = parameters.get('data', '')
 
-        # This is a placeholder - in reality, you'd call the AI assistant server
+        if not data:
+            raise ValueError("Data parameter is required for data analysis")
+
+        # Try to communicate with AI assistant server first
+        try:
+            ai_config = {
+                'host': 'localhost',
+                'port': 8002,
+                'transport': 'websocket'
+            }
+            # Note: This is synchronous but we're calling async method, so we need to handle it
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self._execute_via_websocket(ai_config['host'], ai_config['port'], 'analyze_data', parameters))
+            loop.close()
+            return result
+        except Exception as e:
+            logger.warning(f"AI assistant server communication failed: {e}")
+
+        # Fallback to basic implementation
         return {
             'data_type': type(data).__name__,
             'data_length': len(str(data)),
-            'analysis': 'placeholder_data_analysis',
+            'analysis': 'Data analysis is not yet implemented',
             'insights': [],
-            'status': 'placeholder_implementation'
+            'status': 'fallback_implementation',
+            'error': 'AI assistant server integration failed'
         }
 
     async def _execute_web_scraping(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute web scraping (placeholder for web scraper integration)."""
+        """Execute web scraping using web scraper server."""
         url = parameters.get('url', '')
 
-        # This is a placeholder - in reality, you'd call the web scraper server
+        if not url:
+            raise ValueError("URL parameter is required for web scraping")
+
+        # Try to communicate with web scraper server first
+        try:
+            scraper_config = {
+                'host': 'localhost',
+                'port': 8003,  # Assuming web scraper runs on port 8003
+                'transport': 'websocket'
+            }
+            return await self._execute_via_websocket(scraper_config['host'], scraper_config['port'], 'scrape_web', parameters)
+        except Exception as e:
+            logger.warning(f"Web scraper server communication failed: {e}")
+
+        # Fallback to basic implementation
         return {
             'url': url,
-            'scraped_content': f'Placeholder scraped content from: {url}',
-            'status': 'placeholder_implementation'
+            'scraped_content': f'Web scraping for URL {url} is not yet implemented',
+            'status': 'fallback_implementation',
+            'error': 'Web scraper server integration failed'
         }
 
     async def _execute_remote_tool(self, server_config: Dict[str, Any],

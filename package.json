@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Digital Hustle Lab - LLM Application with MCP Server Ecosystem (digitalhustlelab.com)",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "pnpm": ">=9",
+    "node": ">=18"
+  },
   "scripts": {
+  "preinstall": "node -e \"const p=process.env.npm_execpath||'';if(!p.includes('pnpm')){console.error('This repo uses pnpm. Install with: corepack enable && pnpm i');process.exit(1)}\"",
     "dev": "next dev",
     "dev-prod": "NODE_ENV=production next dev",
     "dev-turbo": "next dev --turbopack",

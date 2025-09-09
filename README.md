@@ -90,17 +90,17 @@ CUSTOM_GROQ_ENDPOINT=https://api.groq.com/openai/v1/chat/completions
 This project is configured to use **digitalhustlelab.com** as the primary domain for all MCP (Model Context Protocol) servers and services.
 
 #### MCP Server Endpoints:
-- **Main Server Manager**: `api.digitalhustlelab.com:3000`
+- Base host: `api.digitalhustlelab.com`
+- **Remote Server**: `api.digitalhustlelab.com:3001`
 - **Web Scraper Server**: `api.digitalhustlelab.com:3002`
 - **Database Connector Server**: `api.digitalhustlelab.com:3003`
 - **AI Assistant Server**: `api.digitalhustlelab.com:3004`
-- **Desktop Server**: `api.digitalhustlelab.com:3005`
-- **Remote Server**: `api.digitalhustlelab.com:3001`
+- **API Integrator Server**: `api.digitalhustlelab.com:3005`
 
 #### WebSocket Endpoints:
-- **File System**: `ws://api.digitalhustlelab.com:3001`
-- **Web Search**: `ws://api.digitalhustlelab.com:3002`
-- **Database**: `ws://api.digitalhustlelab.com:3003`
+- **File System**: `wss://api.digitalhustlelab.com:3001`
+- **Web Search**: `wss://api.digitalhustlelab.com:3002`
+- **Database**: `wss://api.digitalhustlelab.com:3003`
 
 If you need to use a different domain, update the configuration files in the `servers/` directory:
 - `mcp-config-expanded.json`

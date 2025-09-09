@@ -269,9 +269,87 @@ class MCPAnalysisTools:
 
     @staticmethod
     def sentiment_analysis(text: str) -> Dict[str, Any]:
-        """Perform basic sentiment analysis using word lists."""
+        """Perform sentiment analysis using proper NLP libraries."""
         try:
-            # Simple sentiment word lists (in a real implementation, use a proper NLP library)
+            # Try to use NLTK for better sentiment analysis
+            try:
+                import nltk
+                from nltk.sentiment import SentimentIntensityAnalyzer
+
+                # Download VADER lexicon if not already downloaded
+                try:
+                    nltk.data.find('vader_lexicon')
+                except LookupError:
+                    nltk.download('vader_lexicon', quiet=True)
+
+                sia = SentimentIntensityAnalyzer()
+                scores = sia.polarity_scores(text)
+
+                # Convert NLTK scores to our format
+                compound = scores['compound']
+                if compound >= 0.05:
+                    sentiment = "positive"
+                    confidence = compound
+                elif compound <= -0.05:
+                    sentiment = "negative"
+                    confidence = -compound
+                else:
+                    sentiment = "neutral"
+                    confidence = 1 - abs(compound)
+
+                return {
+                    "sentiment": sentiment,
+                    "confidence": round(confidence, 3),
+                    "positive_words": int(scores['pos'] * len(text.split())),
+                    "negative_words": int(scores['neg'] * len(text.split())),
+                    "total_words": len(text.split()),
+                    "positive_score": round(scores['pos'], 3),
+                    "negative_score": round(scores['neg'], 3),
+                    "library": "nltk"
+                }
+
+            except ImportError:
+                # Fallback to spaCy if NLTK not available
+                try:
+                    import spacy
+                    from spacytextblob import SpacyTextBlob
+
+                    nlp = spacy.load("en_core_web_sm")
+                    nlp.add_pipe('spacytextblob')
+
+                    doc = nlp(text)
+                    polarity = doc._.blob.polarity
+
+                    if polarity > 0.1:
+                        sentiment = "positive"
+                        confidence = polarity
+                    elif polarity < -0.1:
+                        sentiment = "negative"
+                        confidence = -polarity
+                    else:
+                        sentiment = "neutral"
+                        confidence = 1 - abs(polarity)
+
+                    words = text.split()
+                    positive_count = sum(1 for word in words if polarity > 0.1)
+                    negative_count = sum(1 for word in words if polarity < -0.1)
+
+                    return {
+                        "sentiment": sentiment,
+                        "confidence": round(confidence, 3),
+                        "positive_words": positive_count,
+                        "negative_words": negative_count,
+                        "total_words": len(words),
+                        "positive_score": round(max(0, polarity), 3),
+                        "negative_score": round(max(0, -polarity), 3),
+                        "library": "spacy"
+                    }
+
+                except ImportError:
+                    # Final fallback to basic word lists
+                    pass
+
+            # Basic word list implementation (fallback)
             positive_words = {
                 'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic',
                 'awesome', 'brilliant', 'outstanding', 'superb', 'perfect', 'love',
@@ -312,7 +390,8 @@ class MCPAnalysisTools:
                 "negative_words": negative_count,
                 "total_words": total_words,
                 "positive_score": round(positive_score, 3),
-                "negative_score": round(negative_score, 3)
+                "negative_score": round(negative_score, 3),
+                "library": "basic_wordlist"
             }
         except Exception as e:
             raise MCPValidationError(f"Failed to analyze sentiment: {str(e)}")

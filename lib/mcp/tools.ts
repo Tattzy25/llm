@@ -6,6 +6,7 @@
  */
 
 import type { MCPTool } from './types'
+import { MCPServerUnavailableError, withMCPErrorHandling } from './utils/error-handling'
 
 // Web Scraping Tools - PRODUCTION READY
 export const WEB_SCRAPING_TOOLS: MCPTool[] = [
@@ -19,10 +20,11 @@ export const WEB_SCRAPING_TOOLS: MCPTool[] = [
       selectors: { type: 'object', description: 'CSS selectors for content extraction' },
       headers: { type: 'object', description: 'Custom headers for the request' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('WEB_SCRAPER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('WEB_SCRAPER', undefined, {
+        hint: 'Ensure WEB_SCRAPER is configured and reachable.'
+      })
+    }, 'web_scrape')
   },
   {
     name: 'web_search',
@@ -34,10 +36,11 @@ export const WEB_SCRAPING_TOOLS: MCPTool[] = [
       maxResults: { type: 'number', description: 'Maximum number of results', default: 10 },
       filters: { type: 'object', description: 'Search filters and options' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('WEB_SCRAPER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('WEB_SCRAPER', undefined, {
+        hint: 'Ensure WEB_SCRAPER is configured and reachable.'
+      })
+    }, 'web_search')
   },
   {
     name: 'content_analysis',
@@ -48,10 +51,11 @@ export const WEB_SCRAPING_TOOLS: MCPTool[] = [
       content: { type: 'string', description: 'Content to analyze', required: true },
       analysisType: { type: 'string', description: 'Type of analysis to perform' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('WEB_SCRAPER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('WEB_SCRAPER', undefined, {
+        hint: 'Ensure WEB_SCRAPER is configured and reachable.'
+      })
+    }, 'content_analysis')
   }
 ]
 
@@ -67,10 +71,9 @@ export const DATABASE_TOOLS: MCPTool[] = [
       query: { type: 'string', description: 'SQL query to execute', required: true },
       dbType: { type: 'string', description: 'Database type (postgres, mysql, sqlite, etc.)', required: true }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('DATABASE server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('DATABASE', undefined, { hint: 'Start DATABASE server and verify credentials.' })
+    }, 'database_query')
   },
   {
     name: 'database_schema',
@@ -82,10 +85,9 @@ export const DATABASE_TOOLS: MCPTool[] = [
       dbType: { type: 'string', description: 'Database type', required: true },
       tableName: { type: 'string', description: 'Specific table name (optional)' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('DATABASE server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('DATABASE', undefined, { hint: 'Start DATABASE server and verify credentials.' })
+    }, 'database_schema')
   },
   {
     name: 'database_backup',
@@ -98,10 +100,9 @@ export const DATABASE_TOOLS: MCPTool[] = [
       backupPath: { type: 'string', description: 'Path to save backup', required: true },
       options: { type: 'object', description: 'Backup options and configuration' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('DATABASE server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('DATABASE', undefined, { hint: 'Start DATABASE server and verify credentials.' })
+    }, 'database_backup')
   }
 ]
 
@@ -117,10 +118,9 @@ export const AI_ASSISTANT_TOOLS: MCPTool[] = [
       model: { type: 'string', description: 'AI model to use', default: 'gpt-4' },
       options: { type: 'object', description: 'Generation options and parameters' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('AI_ASSISTANT server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('AI_ASSISTANT', undefined, { hint: 'Start AI_ASSISTANT server and set model keys.' })
+    }, 'content_generator')
   },
   {
     name: 'code_analyzer',
@@ -132,10 +132,9 @@ export const AI_ASSISTANT_TOOLS: MCPTool[] = [
       language: { type: 'string', description: 'Programming language', required: true },
       analysisType: { type: 'string', description: 'Type of analysis (lint, complexity, security)' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('AI_ASSISTANT server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('AI_ASSISTANT', undefined, { hint: 'Start AI_ASSISTANT server and set model keys.' })
+    }, 'code_analyzer')
   },
   {
     name: 'data_analyzer',
@@ -147,10 +146,9 @@ export const AI_ASSISTANT_TOOLS: MCPTool[] = [
       analysisType: { type: 'string', description: 'Type of analysis (statistics, ml, visualization)', required: true },
       options: { type: 'object', description: 'Analysis options and parameters' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('AI_ASSISTANT server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('AI_ASSISTANT', undefined, { hint: 'Start AI_ASSISTANT server and set model keys.' })
+    }, 'data_analyzer')
   }
 ]
 
@@ -164,10 +162,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
     parameters: {
       server_name: { type: 'string', description: 'Name of the MCP server to start', required: true }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'start_mcp_server')
   },
   {
     name: 'stop_mcp_server',
@@ -177,10 +174,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
     parameters: {
       server_name: { type: 'string', description: 'Name of the MCP server to stop', required: true }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'stop_mcp_server')
   },
   {
     name: 'get_mcp_server_status',
@@ -190,10 +186,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
     parameters: {
       server_name: { type: 'string', description: 'Specific server name (optional)' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'get_mcp_server_status')
   },
   {
     name: 'list_mcp_tools',
@@ -203,10 +198,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
     parameters: {
       server_name: { type: 'string', description: 'Specific server name (optional)' }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'list_mcp_tools')
   },
   {
     name: 'execute_mcp_tool',
@@ -218,10 +212,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
       tool_name: { type: 'string', description: 'Name of the tool to execute', required: true },
       parameters: { type: 'object', description: 'Tool parameters', required: true }
     },
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'execute_mcp_tool')
   },
   {
     name: 'get_system_health',
@@ -229,10 +222,9 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
     category: 'management',
     serverId: 'SERVER_MANAGER',
     parameters: {},
-    handler: async () => {
-      // PRODUCTION: No mock implementation - throw proper error
-      throw new Error('SERVER_MANAGER server is not configured or unavailable. Please check your environment variables and server status.')
-    }
+    handler: withMCPErrorHandling(async () => {
+      throw new MCPServerUnavailableError('SERVER_MANAGER', undefined, { hint: 'Start SERVER_MANAGER to manage servers.' })
+    }, 'get_system_health')
   }
 ]
 

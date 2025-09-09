@@ -22,8 +22,9 @@ import {
   XCircle
 } from 'lucide-react'
 import { getMCPManager } from '@/lib/mcp/manager'
-import { ALL_MCP_TOOLS } from '@/lib/mcp/tools'
+import { ALL_MCP_TOOLS } from '@/lib/mcp/tools/index'
 import { MCPExecutionResult, MCPTool, ToolParameter } from '@/lib/mcp/types'
+import { showError as pushError } from '@/lib/error-bus'
 
 interface ToolExecutionDialogProps {
   tool: MCPTool | null
@@ -44,12 +45,16 @@ function ToolExecutionDialog({ tool, isOpen, onClose }: ToolExecutionDialogProps
       const manager = getMCPManager()
       const executionResult = await manager.executeTool(tool.name, parameters)
       setResult(executionResult)
+      if (!executionResult.success) {
+        pushError(executionResult.error || `Execution failed for ${tool.name}`, `Tool: ${tool.name}`)
+      }
     } catch (error) {
       setResult({
         success: false,
         error: String(error),
         executionTime: Date.now()
       } as MCPExecutionResult)
+      pushError(error, `Tool: ${tool?.name ?? 'Unknown'}`)
     } finally {
       setExecuting(false)
     }
@@ -59,7 +64,7 @@ function ToolExecutionDialog({ tool, isOpen, onClose }: ToolExecutionDialogProps
     setParameters(prev => ({ ...prev, [paramName]: value }))
   }
 
-  const getParameterInput = (paramName: string, paramConfig: { type: string; description: string; required?: boolean; default?: unknown }) => {
+  const getParameterInput = (paramName: string, paramConfig: { type: string; description?: string; required?: boolean; default?: unknown }) => {
     const value = parameters[paramName] || paramConfig.default || ''
 
     switch (paramConfig.type) {

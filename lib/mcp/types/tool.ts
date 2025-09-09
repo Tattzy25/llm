@@ -1,24 +1,17 @@
-"use client"
+export type MCPParameterType = 'string' | 'number' | 'object' | 'boolean'
 
-/**
- * MCP Tool Types
- *
- * Type definitions for MCP tools and parameters.
- */
+export interface MCPToolParameter {
+  type: MCPParameterType
+  description?: string
+  required?: boolean
+  default?: unknown
+}
 
 export interface MCPTool {
   name: string
   description: string
-  parameters: Record<string, ToolParameter>
+  category: string
+  serverId: string
+  parameters: Record<string, MCPToolParameter>
   handler: (params: Record<string, unknown>) => Promise<unknown>
-  category?: string
-  serverId?: string
-}
-
-export interface ToolParameter {
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
-  description: string
-  required?: boolean
-  default?: unknown
-  enum?: string[]
 }

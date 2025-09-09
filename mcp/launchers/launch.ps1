@@ -3,7 +3,7 @@
 
 param(
     [string]$Command = "menu",
-    [string]$RemoteServer = "api.api.digitalhustlelab.com",
+    [string]$RemoteServer = "api.digitalhustlelab.com",
     [int]$Port,
     [switch]$Stdio
 )

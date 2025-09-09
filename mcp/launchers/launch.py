@@ -54,7 +54,9 @@ def start_remote_server(host='localhost', port=None, stdio=False):
     if port is None:
         port = find_free_port()
 
-    server_path = Path(__file__).parent / 'remote_server.py'
+    # Use authoritative servers directory at repo root
+    root = Path(__file__).resolve().parents[2]
+    server_path = root / 'servers' / 'server.py'
 
     if not server_path.exists():
         print(f"❌ Remote server not found: {server_path}")
@@ -88,7 +90,9 @@ def start_remote_server(host='localhost', port=None, stdio=False):
 
 def start_desktop_server():
     """Start the desktop MCP server"""
-    server_path = Path(__file__).parent / 'desktop_server.py'
+    # Use authoritative servers directory at repo root
+    root = Path(__file__).resolve().parents[2]
+    server_path = root / 'servers' / 'desktop_server.py'
 
     if not server_path.exists():
         print(f"❌ Desktop server not found: {server_path}")

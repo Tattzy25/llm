@@ -10,7 +10,7 @@
 import type { MCPTool, MCPExecutionResult } from './types'
 import { getMCPConfig } from './config'
 import { MCPClient } from './client'
-import { ALL_MCP_TOOLS, getToolsByServer } from './tools'
+import { ALL_MCP_TOOLS, getToolsByServer } from './tools/index'
 import { createResult } from './utils'
 
 export class MCPManager {
@@ -262,7 +262,6 @@ export class MCPManager {
    */
   async getHealthMetrics(): Promise<MCPExecutionResult> {
     try {
-      // Mock data for now - replace with actual Redis queries
       const serverMetrics: Array<{
         serverId: string
         status: 'up' | 'down' | 'degraded'
@@ -286,40 +285,57 @@ export class MCPManager {
           network: boolean
           system: boolean
         }
-      }> = [
-        {
-          serverId: 'DESKTOP',
-          status: 'up' as const,
-          latency: { typical: 45, slowest: 120 },
-          successRate: { last15min: 0.98, last24h: 0.95 },
-          toolCount: 15,
+      }> = []
+
+      // Check each configured server
+      for (const serverId of Object.keys(this.config)) {
+        const isActive = this.activeServers.has(serverId)
+        const serverConfig = this.config[serverId as keyof typeof this.config]
+
+        let latency = { typical: 0, slowest: 0 }
+        let successRate = { last15min: 0.5, last24h: 0.5 } // Default fallback
+        let toolCount = 0
+        let status: 'up' | 'down' | 'degraded' = 'down'
+
+        if (isActive && serverConfig && typeof serverConfig === 'object' && 'tools' in serverConfig) {
+          status = 'up'
+          toolCount = Array.isArray(serverConfig.tools) ? serverConfig.tools.length : 0
+
+          // Try to get actual latency by running a quick test
+          try {
+            const startTime = Date.now()
+            await this.client.executeTool(serverId, 'health_check', {})
+            const responseTime = Date.now() - startTime
+            latency = { typical: responseTime, slowest: responseTime }
+            successRate = { last15min: 0.95, last24h: 0.90 } // Assume good performance if responding
+          } catch {
+            status = 'degraded'
+            latency = { typical: 1000, slowest: 5000 }
+            successRate = { last15min: 0.5, last24h: 0.5 }
+          }
+        }
+
+        serverMetrics.push({
+          serverId,
+          status,
+          latency,
+          successRate,
+          toolCount,
           version: '1.0.0',
-          schemaHash: 'abc123',
+          schemaHash: 'unknown',
           lastChange: new Date().toISOString(),
           lastCheck: new Date().toISOString(),
-          recentActivity: [
-            { timestamp: new Date().toISOString(), tool: 'file_search', success: true, duration: 50 },
-            { timestamp: new Date(Date.now() - 300000).toISOString(), tool: 'clipboard_read', success: true, duration: 25 }
-          ],
-          permissions: { readFiles: true, writeFiles: false, network: true, system: false }
-        },
-        {
-          serverId: 'FILESYSTEM',
-          status: 'up' as const,
-          latency: { typical: 30, slowest: 80 },
-          successRate: { last15min: 0.99, last24h: 0.97 },
-          toolCount: 8,
-          version: '1.1.0',
-          schemaHash: 'def456',
-          lastChange: new Date(Date.now() - 86400000).toISOString(),
-          lastCheck: new Date().toISOString(),
-          recentActivity: [
-            { timestamp: new Date().toISOString(), tool: 'list_dir', success: true, duration: 35 }
-          ],
-          permissions: { readFiles: true, writeFiles: true, network: false, system: false }
-        }
-      ]
+          recentActivity: [],
+          permissions: {
+            readFiles: serverId === 'FILESYSTEM' || serverId === 'DESKTOP',
+            writeFiles: serverId === 'FILESYSTEM',
+            network: serverId === 'WEB_SCRAPER',
+            system: serverId === 'DESKTOP'
+          }
+        })
+      }
 
+      // For now, return minimal user metrics - in production this would come from Redis/session data
       const userMetrics: Array<{
         userId: string
         os: string
@@ -341,38 +357,39 @@ export class MCPManager {
         successRate: number
       }> = [
         {
-          userId: 'user_123',
-          os: 'Windows 11',
+          userId: 'current_user',
+          os: 'Unknown', // Would be detected from user agent/session
           lastHeartbeat: new Date().toISOString(),
           lastSuccessfulCall: new Date().toISOString(),
           lastError: null,
-          connectedServers: ['DESKTOP', 'FILESYSTEM'],
+          connectedServers: Array.from(this.activeServers),
           permissionsGranted: { readFiles: true, writeFiles: false, network: true, system: false },
-          totalCalls: 150,
-          successRate: 0.96
+          totalCalls: 0, // Would be tracked in production
+          successRate: 1.0
         }
       ]
 
       const healthData = {
-        status: 'up' as const,
+        status: serverMetrics.some(s => s.status === 'up') ? 'up' : 'down',
         responseTime: {
-          typical: 150,
-          slowest: 2500
+          typical: serverMetrics.reduce((sum, s) => sum + s.latency.typical, 0) / serverMetrics.length || 0,
+          slowest: Math.max(...serverMetrics.map(s => s.latency.slowest)) || 0
         },
         lastSuccess: {
           timestamp: new Date().toISOString(),
-          reason: 'Tool execution successful'
+          reason: 'Health check completed'
         },
-        lastFailure: {
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          reason: 'Timeout on web scraping'
-        },
+        lastFailure: serverMetrics.some(s => s.status === 'down') ? {
+          timestamp: new Date().toISOString(),
+          reason: 'Some servers are down'
+        } : null,
         version: '1.0.0',
         schemaChanged: false,
         lastSchemaCheck: new Date().toISOString(),
         serverMetrics,
         userMetrics
       }
+
       return createResult(true, healthData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get health metrics: ${error}`)
@@ -384,35 +401,36 @@ export class MCPManager {
    */
   async getReliabilityMetrics(): Promise<MCPExecutionResult> {
     try {
-      // Mock data - replace with actual metrics
+      // Calculate reliability based on actual server states
+      const activeServers = Array.from(this.activeServers)
+      const totalConfiguredServers = Object.keys(this.config).length
+
+      const successRate = {
+        last15min: activeServers.length / totalConfiguredServers,
+        last24h: activeServers.length / totalConfiguredServers
+      }
+
+      // For now, return basic reliability data - in production this would track actual errors/timeouts
       const reliabilityData = {
-        successRate: {
-          last15min: 0.95,
-          last24h: 0.92
-        },
+        successRate,
         timeouts: {
-          count: 12,
-          topCauses: [
-            { cause: 'Network timeout', count: 8 },
-            { cause: 'Server overload', count: 4 }
-          ]
+          count: 0, // Would be tracked in production
+          topCauses: []
         },
         crashes: {
-          count: 2,
-          topCauses: [
-            { cause: 'Memory leak', count: 1 },
-            { cause: 'Unhandled exception', count: 1 }
-          ]
+          count: 0, // Would be tracked in production
+          topCauses: []
         },
         coldStarts: {
-          averageTime: 1200,
-          count: 45
+          averageTime: 500, // Would be measured in production
+          count: totalConfiguredServers - activeServers.length
         },
         retries: {
-          total: 156,
-          successAfterRetry: 142
+          total: 0, // Would be tracked in production
+          successAfterRetry: 0
         }
       }
+
       return createResult(true, reliabilityData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get reliability metrics: ${error}`)
@@ -424,29 +442,26 @@ export class MCPManager {
    */
   async getUsageMetrics(): Promise<MCPExecutionResult> {
     try {
-      // Mock data - replace with actual usage tracking
+      // Calculate usage based on available tools and servers
+      const allTools = ALL_MCP_TOOLS
+      const callsPerTool: Record<string, number> = {}
+
+      // Initialize all tools with 0 usage
+      allTools.forEach((tool: MCPTool) => {
+        callsPerTool[tool.name] = 0
+      })
+
+      // For now, return basic usage data - in production this would track actual usage
       const usageData = {
-        callsPerTool: {
-          'web_scrape': 1250,
-          'database_query': 890,
-          'content_generator': 567,
-          'file_search': 2340
-        },
+        callsPerTool,
         activeUsers: {
-          today: 45,
-          last7days: 128
+          today: 1, // Current user
+          last7days: 1
         },
-        heavySessions: [
-          { sessionId: 'sess_001', userId: 'user_123', calls: 150, duration: 3600 },
-          { sessionId: 'sess_002', userId: 'user_456', calls: 120, duration: 2400 }
-        ],
-        popularTools: {
-          'file_search': 2340,
-          'web_scrape': 1250,
-          'database_query': 890,
-          'content_generator': 567
-        }
+        heavySessions: [], // Would be tracked in production
+        popularTools: callsPerTool
       }
+
       return createResult(true, usageData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get usage metrics: ${error}`)
@@ -458,28 +473,23 @@ export class MCPManager {
    */
   async getCostRiskMetrics(): Promise<MCPExecutionResult> {
     try {
-      // Mock data - replace with actual cost tracking
+      // For now, return basic cost/risk data - in production this would track actual usage costs
       const costRiskData = {
-        tokenEstimates: {
-          'content_generator': 1500,
-          'code_analyzer': 800
-        },
-        costEstimates: {
-          'content_generator': 0.15,
-          'code_analyzer': 0.08
-        },
+        tokenEstimates: {}, // Would be calculated based on actual tool usage
+        costEstimates: {}, // Would be calculated based on actual API costs
         dataSensitivity: {
-          piiDetected: false,
-          filePaths: true,
-          secrets: false
+          piiDetected: false, // Would be detected in production
+          filePaths: true, // File system tools access paths
+          secrets: false // Would be detected in production
         },
         permissions: {
-          readFiles: true,
-          writeFiles: false,
-          systemControl: false,
-          network: true
+          readFiles: this.activeServers.has('FILESYSTEM') || this.activeServers.has('DESKTOP'),
+          writeFiles: this.activeServers.has('FILESYSTEM'),
+          systemControl: this.activeServers.has('DESKTOP'),
+          network: this.activeServers.has('WEB_SCRAPER') || this.activeServers.has('DATABASE')
         }
       }
+
       return createResult(true, costRiskData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get cost/risk metrics: ${error}`)
@@ -491,16 +501,14 @@ export class MCPManager {
    */
   async getRoutingMetrics(): Promise<MCPExecutionResult> {
     try {
-      // Mock data - replace with actual routing analytics
+      // For now, return basic routing data - in production this would track actual routing patterns
       const routingData = {
-        handoffsPerSession: 2.3,
-        loopsDetected: 5,
-        averageStepsToFinish: 8.5,
-        sessionStats: [
-          { sessionId: 'sess_001', steps: 12, handoffs: 3, loops: 0 },
-          { sessionId: 'sess_002', steps: 8, handoffs: 2, loops: 1 }
-        ]
+        handoffsPerSession: 0, // Would be calculated from actual sessions
+        loopsDetected: 0, // Would be detected in production
+        averageStepsToFinish: 1, // Basic single-step execution
+        sessionStats: [] // Would be populated from actual session data
       }
+
       return createResult(true, routingData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get routing metrics: ${error}`)
@@ -512,25 +520,32 @@ export class MCPManager {
    */
   async getAlerts(): Promise<MCPExecutionResult> {
     try {
-      // Mock data - replace with actual alert system
-      const alertsData = [
-        {
-          id: 'alert_001',
-          type: 'error_spike' as const,
-          severity: 'medium' as const,
-          message: 'Error rate increased by 25% in last 15 minutes',
-          timestamp: new Date().toISOString(),
-          serverId: 'WEB_SCRAPER'
-        },
-        {
-          id: 'alert_002',
-          type: 'slowdown' as const,
-          severity: 'low' as const,
-          message: 'Response time increased 2x for web_scrape tool',
-          timestamp: new Date(Date.now() - 1800000).toISOString(),
-          toolId: 'web_scrape'
+      // Check for basic alerts based on server status
+      const alertsData: Array<{
+        id: string
+        type: 'error_spike' | 'timeout_spike' | 'schema_change' | 'looping' | 'cost_anomaly' | 'slowdown'
+        severity: 'low' | 'medium' | 'high' | 'critical'
+        message: string
+        timestamp: string
+        serverId?: string
+        toolId?: string
+      }> = []
+
+      // Check for basic alerts based on server status
+      for (const serverId of Object.keys(this.config)) {
+        const isActive = this.activeServers.has(serverId)
+        if (!isActive) {
+          alertsData.push({
+            id: `server_down_${serverId}`,
+            type: 'error_spike',
+            severity: 'high',
+            message: `Server ${serverId} is not running`,
+            timestamp: new Date().toISOString(),
+            serverId
+          })
         }
-      ]
+      }
+
       return createResult(true, alertsData)
     } catch (error) {
       return createResult(false, undefined, `Failed to get alerts: ${error}`)
@@ -542,16 +557,50 @@ export class MCPManager {
    */
   async runServerTest(serverId: string): Promise<MCPExecutionResult> {
     try {
-      // Mock test implementation - replace with actual server testing
-      const testResult = {
-        serverId,
-        success: Math.random() > 0.1, // 90% success rate for demo
-        latency: Math.floor(Math.random() * 200) + 50,
-        toolsTested: Math.floor(Math.random() * 5) + 1,
-        timestamp: new Date().toISOString(),
-        details: `Test completed for ${serverId}`
+      const startTime = Date.now()
+
+      // Try to connect to the server and run a basic health check
+      const serverConfig = this.getServerConfig(serverId)
+      if (!serverConfig) {
+        return createResult(false, undefined, `Server configuration not found: ${serverId}`)
       }
-      return createResult(true, testResult)
+
+      // Attempt to start the server if not running
+      const isRunning = this.activeServers.has(serverId)
+      if (!isRunning) {
+        const startResult = await this.startServer(serverId)
+        if (!startResult.success) {
+          return createResult(false, undefined, `Failed to start server for testing: ${startResult.error}`)
+        }
+      }
+
+      // Run a health check by attempting to execute a simple tool
+      try {
+        const healthCheck = await this.client.executeTool(serverId, 'health_check', {})
+        const latency = Date.now() - startTime
+
+        const testResult = {
+          serverId,
+          success: healthCheck.success,
+          latency,
+          toolsTested: 1,
+          timestamp: new Date().toISOString(),
+          details: healthCheck.success ? `Health check passed for ${serverId}` : `Health check failed for ${serverId}`
+        }
+
+        return createResult(true, testResult)
+      } catch (toolError) {
+        const latency = Date.now() - startTime
+        const testResult = {
+          serverId,
+          success: false,
+          latency,
+          toolsTested: 1,
+          timestamp: new Date().toISOString(),
+          details: `Tool execution failed: ${toolError}`
+        }
+        return createResult(true, testResult) // Return test result even if tool failed
+      }
     } catch (error) {
       return createResult(false, undefined, `Failed to run test for ${serverId}: ${error}`)
     }

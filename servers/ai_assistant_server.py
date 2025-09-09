@@ -565,15 +565,34 @@ class AIAssistantServer:
 
         return json.dumps(analysis, indent=2)
 
-async def main():
-    """Main server entry point"""
-    server = AIAssistantServer()
+import uvicorn
+from fastapi import FastAPI
 
-    # Run the server
-    async with server.server:
-        logger.info("🤖 AI Assistant MCP Server started successfully")
-        logger.info("Available tools: analyze_code_intelligence, generate_code_suggestion, review_code_quality, optimize_code, generate_documentation, explain_code_segment, suggest_improvements, detect_code_smells")
-        await server.server.serve()
+# ... (rest of the imports)
+
+# MCP Protocol
+from mcp import Tool
+from mcp.server import Server
+from mcp.types import TextContent, PromptMessage
+from mcp.transport.fastapi import add_mcp_routes
+
+# ... (rest of the file)
+
+class AIAssistantServer:
+    # ... (rest of the class)
+
+# Create FastAPI app
+app = FastAPI(title="AI Assistant MCP Server", version="1.0.0")
+
+# Create and setup the server
+ai_server = AIAssistantServer()
+
+# Add the MCP routes to the FastAPI app
+add_mcp_routes(app, ai_server.server)
+
+@app.get("/")sync def root():
+    return {"message": "AI Assistant MCP Server is running"}
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uvicorn.run(app, host="localhost", port=8002)
+

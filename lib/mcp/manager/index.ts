@@ -10,7 +10,7 @@
 import type { MCPTool, MCPExecutionResult } from '../types'
 import { getMCPConfig } from '../config'
 import { MCPClient } from '../client'
-import { ALL_MCP_TOOLS, getToolsByServer } from '../tools'
+import { ALL_MCP_TOOLS, getToolsByServer } from '../tools/index'
 import { createResult } from '../utils'
 import { ServerLifecycleManager } from './server-lifecycle'
 
