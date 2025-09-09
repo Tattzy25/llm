@@ -1,0 +1,823 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "name": "Advanced File System Server",
+      "description": "Comprehensive file system operations with advanced search and management",
+      "type": "desktop",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["servers/desktop_server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      },
+      "tools": {
+        "file_operations": {
+          "name": "File Operations",
+          "description": "Read, write, copy, move, delete files and directories",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["read", "write", "list", "delete", "move", "copy", "mkdir", "stat"],
+                "description": "File operation to perform"
+              },
+              "path": {
+                "type": "string",
+                "description": "File or directory path"
+              },
+              "content": {
+                "type": "string",
+                "description": "Content for write operations"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Destination path for move/copy"
+              },
+              "recursive": {
+                "type": "boolean",
+                "description": "Whether to operate recursively",
+                "default": false
+              }
+            },
+            "required": ["operation", "path"]
+          }
+        },
+        "file_search": {
+          "name": "Advanced File Search",
+          "description": "Search files by name, content, type, and metadata",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query (filename, content, or pattern)"
+              },
+              "path": {
+                "type": "string",
+                "description": "Directory to search in",
+                "default": "."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["file", "directory", "all"],
+                "description": "Type of items to search for",
+                "default": "all"
+              },
+              "recursive": {
+                "type": "boolean",
+                "description": "Search recursively",
+                "default": true
+              },
+              "max_results": {
+                "type": "number",
+                "description": "Maximum number of results",
+                "default": 100
+              }
+            },
+            "required": ["query"]
+          }
+        },
+        "file_analysis": {
+          "name": "File Analysis",
+          "description": "Analyze file types, sizes, encodings, and content",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File path to analyze"
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["basic", "content", "encoding", "mime", "hash"],
+                "description": "Type of analysis to perform",
+                "default": "basic"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    },
+    "system_monitor": {
+      "name": "System Monitor Server",
+      "description": "Monitor system resources, processes, and performance",
+      "type": "desktop",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["servers/desktop_server.py", "--mode", "system"],
+      "tools": {
+        "system_info": {
+          "name": "System Information",
+          "description": "Get detailed system information and specifications",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string",
+                "enum": ["basic", "cpu", "memory", "disk", "network", "platform", "all"],
+                "description": "Category of system information",
+                "default": "all"
+              }
+            }
+          }
+        },
+        "process_monitor": {
+          "name": "Process Monitor",
+          "description": "Monitor running processes and system performance",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["list", "info", "kill", "start"],
+                "description": "Process operation to perform"
+              },
+              "pid": {
+                "type": "number",
+                "description": "Process ID for specific operations"
+              },
+              "name": {
+                "type": "string",
+                "description": "Process name for filtering"
+              },
+              "limit": {
+                "type": "number",
+                "description": "Maximum number of processes to return",
+                "default": 50
+              }
+            },
+            "required": ["operation"]
+          }
+        },
+        "performance_metrics": {
+          "name": "Performance Metrics",
+          "description": "Get real-time performance metrics",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "metrics": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["cpu", "memory", "disk", "network", "load"]
+                },
+                "description": "Metrics to collect",
+                "default": ["cpu", "memory"]
+              },
+              "interval": {
+                "type": "number",
+                "description": "Sampling interval in seconds",
+                "default": 1
+              },
+              "duration": {
+                "type": "number",
+                "description": "Duration to monitor in seconds",
+                "default": 10
+              }
+            }
+          }
+        }
+      }
+    },
+    "web_scraper": {
+      "name": "Web Scraping Server",
+      "description": "Scrape websites, extract data, and analyze web content",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3002,
+      "tools": {
+        "web_scrape": {
+          "name": "Web Scraper",
+          "description": "Scrape web pages and extract structured data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL to scrape"
+              },
+              "selectors": {
+                "type": "object",
+                "description": "CSS selectors for data extraction",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "headers": {
+                "type": "object",
+                "description": "Custom HTTP headers",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "wait_for": {
+                "type": "string",
+                "description": "CSS selector to wait for before scraping"
+              }
+            },
+            "required": ["url"]
+          }
+        },
+        "web_search": {
+          "name": "Web Search",
+          "description": "Search the web using various search engines",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query"
+              },
+              "engine": {
+                "type": "string",
+                "enum": ["google", "bing", "duckduckgo", "brave"],
+                "description": "Search engine to use",
+                "default": "google"
+              },
+              "max_results": {
+                "type": "number",
+                "description": "Maximum number of results",
+                "default": 10
+              },
+              "safe_search": {
+                "type": "boolean",
+                "description": "Enable safe search filtering",
+                "default": true
+              }
+            },
+            "required": ["query"]
+          }
+        },
+        "content_analysis": {
+          "name": "Content Analysis",
+          "description": "Analyze web content for SEO, readability, and structure",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL to analyze"
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["seo", "readability", "structure", "accessibility", "performance"],
+                "description": "Type of analysis to perform",
+                "default": "seo"
+              }
+            },
+            "required": ["url"]
+          }
+        }
+      }
+    },
+    "database_connector": {
+      "name": "Database Connector Server",
+      "description": "Connect to various databases and execute queries",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3003,
+      "tools": {
+        "database_query": {
+          "name": "Database Query",
+          "description": "Execute SQL queries on connected databases",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "connection_string": {
+                "type": "string",
+                "description": "Database connection string"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "parameters": {
+                "type": "array",
+                "description": "Query parameters for prepared statements",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "timeout": {
+                "type": "number",
+                "description": "Query timeout in seconds",
+                "default": 30
+              }
+            },
+            "required": ["connection_string", "query"]
+          }
+        },
+        "database_schema": {
+          "name": "Database Schema Explorer",
+          "description": "Explore database schemas and table structures",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "connection_string": {
+                "type": "string",
+                "description": "Database connection string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["tables", "columns", "indexes", "constraints", "relationships"],
+                "description": "Schema operation to perform"
+              },
+              "table_name": {
+                "type": "string",
+                "description": "Specific table name for detailed operations"
+              }
+            },
+            "required": ["connection_string", "operation"]
+          }
+        },
+        "database_backup": {
+          "name": "Database Backup",
+          "description": "Create and manage database backups",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "connection_string": {
+                "type": "string",
+                "description": "Database connection string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["backup", "restore", "list", "delete"],
+                "description": "Backup operation to perform"
+              },
+              "backup_path": {
+                "type": "string",
+                "description": "Path for backup file"
+              },
+              "compression": {
+                "type": "boolean",
+                "description": "Enable compression for backup",
+                "default": true
+              }
+            },
+            "required": ["connection_string", "operation"]
+          }
+        }
+      }
+    },
+    "ai_assistant": {
+      "name": "AI Assistant Server",
+      "description": "AI-powered tools for content generation, analysis, and automation",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3004,
+      "tools": {
+        "content_generator": {
+          "name": "Content Generator",
+          "description": "Generate various types of content using AI",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["article", "summary", "code", "email", "social", "creative"],
+                "description": "Type of content to generate"
+              },
+              "topic": {
+                "type": "string",
+                "description": "Topic or subject for content generation"
+              },
+              "length": {
+                "type": "string",
+                "enum": ["short", "medium", "long"],
+                "description": "Desired content length",
+                "default": "medium"
+              },
+              "style": {
+                "type": "string",
+                "description": "Writing style or tone",
+                "default": "professional"
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Keywords to include in content"
+              }
+            },
+            "required": ["type", "topic"]
+          }
+        },
+        "code_analyzer": {
+          "name": "Code Analyzer",
+          "description": "Analyze code for bugs, performance, and best practices",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Code to analyze"
+              },
+              "language": {
+                "type": "string",
+                "description": "Programming language"
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["bugs", "performance", "security", "style", "complexity"],
+                "description": "Type of analysis to perform",
+                "default": "bugs"
+              }
+            },
+            "required": ["code", "language"]
+          }
+        },
+        "data_analyzer": {
+          "name": "Data Analyzer",
+          "description": "Analyze datasets and generate insights",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string",
+                "description": "JSON data or CSV content to analyze"
+              },
+              "data_type": {
+                "type": "string",
+                "enum": ["json", "csv", "text"],
+                "description": "Format of the input data"
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["summary", "trends", "correlations", "anomalies", "predictions"],
+                "description": "Type of analysis to perform"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Specific columns to analyze (for CSV/JSON)"
+              }
+            },
+            "required": ["data", "data_type", "analysis_type"]
+          }
+        }
+      }
+    },
+    "api_integrator": {
+      "name": "API Integration Server",
+      "description": "Connect to external APIs and services",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3005,
+      "tools": {
+        "api_call": {
+          "name": "API Call",
+          "description": "Make HTTP requests to external APIs",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+                "description": "HTTP method"
+              },
+              "url": {
+                "type": "string",
+                "description": "API endpoint URL"
+              },
+              "headers": {
+                "type": "object",
+                "description": "HTTP headers",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "body": {
+                "type": "string",
+                "description": "Request body (for POST/PUT/PATCH)"
+              },
+              "auth": {
+                "type": "object",
+                "description": "Authentication configuration",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["bearer", "basic", "api_key"]
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              },
+              "timeout": {
+                "type": "number",
+                "description": "Request timeout in seconds",
+                "default": 30
+              }
+            },
+            "required": ["method", "url"]
+          }
+        },
+        "webhook_manager": {
+          "name": "Webhook Manager",
+          "description": "Manage webhooks for real-time notifications",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["create", "list", "delete", "test"],
+                "description": "Webhook operation"
+              },
+              "url": {
+                "type": "string",
+                "description": "Webhook URL"
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Events to listen for"
+              },
+              "secret": {
+                "type": "string",
+                "description": "Webhook secret for verification"
+              }
+            },
+            "required": ["operation"]
+          }
+        },
+        "oauth_manager": {
+          "name": "OAuth Manager",
+          "description": "Handle OAuth authentication flows",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": ["google", "github", "twitter", "facebook", "discord"],
+                "description": "OAuth provider"
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["authorize", "refresh", "revoke"],
+                "description": "OAuth operation"
+              },
+              "client_id": {
+                "type": "string",
+                "description": "OAuth client ID"
+              },
+              "client_secret": {
+                "type": "string",
+                "description": "OAuth client secret"
+              },
+              "redirect_uri": {
+                "type": "string",
+                "description": "OAuth redirect URI"
+              }
+            },
+            "required": ["provider", "operation"]
+          }
+        }
+      }
+    },
+    "media_processor": {
+      "name": "Media Processing Server",
+      "description": "Process images, videos, and audio files",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3006,
+      "tools": {
+        "image_processor": {
+          "name": "Image Processor",
+          "description": "Process and manipulate images",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["resize", "crop", "rotate", "filter", "convert", "analyze"],
+                "description": "Image operation to perform"
+              },
+              "input_path": {
+                "type": "string",
+                "description": "Input image path or URL"
+              },
+              "output_path": {
+                "type": "string",
+                "description": "Output image path"
+              },
+              "width": {
+                "type": "number",
+                "description": "Width for resize/crop operations"
+              },
+              "height": {
+                "type": "number",
+                "description": "Height for resize/crop operations"
+              },
+              "quality": {
+                "type": "number",
+                "description": "Output quality (1-100)",
+                "default": 85
+              }
+            },
+            "required": ["operation", "input_path"]
+          }
+        },
+        "video_processor": {
+          "name": "Video Processor",
+          "description": "Process and manipulate video files",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["convert", "compress", "trim", "merge", "extract_audio", "add_subtitles"],
+                "description": "Video operation to perform"
+              },
+              "input_path": {
+                "type": "string",
+                "description": "Input video path"
+              },
+              "output_path": {
+                "type": "string",
+                "description": "Output video path"
+              },
+              "format": {
+                "type": "string",
+                "description": "Output video format (mp4, avi, mov, etc.)"
+              },
+              "start_time": {
+                "type": "string",
+                "description": "Start time for trimming (HH:MM:SS)"
+              },
+              "end_time": {
+                "type": "string",
+                "description": "End time for trimming (HH:MM:SS)"
+              }
+            },
+            "required": ["operation", "input_path"]
+          }
+        },
+        "audio_processor": {
+          "name": "Audio Processor",
+          "description": "Process and manipulate audio files",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["convert", "trim", "normalize", "effects", "transcribe"],
+                "description": "Audio operation to perform"
+              },
+              "input_path": {
+                "type": "string",
+                "description": "Input audio path"
+              },
+              "output_path": {
+                "type": "string",
+                "description": "Output audio path"
+              },
+              "format": {
+                "type": "string",
+                "description": "Output audio format (mp3, wav, flac, etc.)"
+              },
+              "start_time": {
+                "type": "number",
+                "description": "Start time in seconds for trimming"
+              },
+              "end_time": {
+                "type": "number",
+                "description": "End time in seconds for trimming"
+              }
+            },
+            "required": ["operation", "input_path"]
+          }
+        }
+      }
+    },
+    "security_scanner": {
+      "name": "Security Scanner Server",
+      "description": "Security analysis and vulnerability scanning",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3007,
+      "tools": {
+        "vulnerability_scanner": {
+          "name": "Vulnerability Scanner",
+          "description": "Scan for security vulnerabilities",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "description": "Target to scan (URL, IP, file path)"
+              },
+              "scan_type": {
+                "type": "string",
+                "enum": ["web", "network", "file", "code"],
+                "description": "Type of security scan"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high", "critical"],
+                "description": "Minimum severity level to report",
+                "default": "medium"
+              },
+              "timeout": {
+                "type": "number",
+                "description": "Scan timeout in seconds",
+                "default": 300
+              }
+            },
+            "required": ["target", "scan_type"]
+          }
+        },
+        "password_analyzer": {
+          "name": "Password Analyzer",
+          "description": "Analyze password strength and security",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string",
+                "description": "Password to analyze"
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["strength", "breach_check", "suggestions"],
+                "description": "Type of password analysis",
+                "default": "strength"
+              }
+            },
+            "required": ["password"]
+          }
+        },
+        "encryption_manager": {
+          "name": "Encryption Manager",
+          "description": "Encrypt and decrypt data and files",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["encrypt", "decrypt", "generate_key", "hash"],
+                "description": "Encryption operation"
+              },
+              "algorithm": {
+                "type": "string",
+                "enum": ["aes", "rsa", "blowfish", "sha256", "md5"],
+                "description": "Encryption algorithm",
+                "default": "aes"
+              },
+              "input_path": {
+                "type": "string",
+                "description": "Input file path"
+              },
+              "output_path": {
+                "type": "string",
+                "description": "Output file path"
+              },
+              "key": {
+                "type": "string",
+                "description": "Encryption key or passphrase"
+              }
+            },
+            "required": ["operation"]
+          }
+        }
+      }
+    }
+  },
+  "mcpVersion": "2024-11-05",
+  "jsonRpcVersion": "2.0",
+  "globalConfig": {
+    "maxConcurrentConnections": 10,
+    "defaultTimeout": 30,
+    "enableLogging": true,
+    "logLevel": "INFO",
+    "enableMetrics": true,
+    "rateLimit": {
+      "requestsPerMinute": 60,
+      "burstLimit": 10
+    },
+    "security": {
+      "enableTls": false,
+      "allowedHosts": ["digitalhustlelab.com", "localhost", "127.0.0.1"],
+      "requireAuth": false
+    }
+  }
+}

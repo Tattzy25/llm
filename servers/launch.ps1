@@ -3,7 +3,7 @@
 
 param(
     [string]$Command = "menu",
-    [string]$ServerHost = "localhost",
+    [string]$RemoteServer = "digitalhustlelab.com",
     [int]$Port,
     [switch]$Stdio
 )
@@ -44,7 +44,7 @@ try {
 }
 
 function Start-RemoteServer {
-    param([string]$ServerHost = "localhost", [int]$PortNumber, [switch]$UseStdio)
+    param([string]$RemoteServer = "digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
 
     if (-not $PortNumber) {
         # Find free port
@@ -52,7 +52,7 @@ function Start-RemoteServer {
         while ($true) {
             try {
                 $tcpClient = New-Object System.Net.Sockets.TcpClient
-                $tcpClient.Connect($ServerHost, $PortNumber)
+                $tcpClient.Connect($RemoteServer, $PortNumber)
                 $tcpClient.Close()
                 $PortNumber++
             } catch {
@@ -61,7 +61,7 @@ function Start-RemoteServer {
         }
     }
 
-    $cmd = @("python", "launch.py", "remote", "--host", $HostName, "--port", $PortNumber.ToString())
+    $cmd = @("python", "launch.py", "remote", "--host", $RemoteServer, "--port", $PortNumber.ToString())
     if ($UseStdio) {
         $cmd += "--stdio"
     }
@@ -76,10 +76,10 @@ function Start-DesktopServer {
 }
 
 function Start-AllServers {
-    param([string]$HostName = "localhost", [int]$PortNumber, [switch]$UseStdio)
+    param([string]$RemoteServer = "digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
 
     Write-Host "🚀 Starting Both MCP Servers..." -ForegroundColor Green
-    & python launch.py all --host $HostName $(if ($PortNumber) { "--port $PortNumber" }) $(if ($UseStdio) { "--stdio" })
+    & python launch.py all --host $RemoteServer $(if ($PortNumber) { "--port $PortNumber" }) $(if ($UseStdio) { "--stdio" })
 }
 
 function Show-Menu {
@@ -110,9 +110,9 @@ function Show-Menu {
 
 # Main execution
 switch ($Command.ToLower()) {
-    "remote" { Start-RemoteServer -HostName $HostName -PortNumber $Port -UseStdio:$Stdio }
+    "remote" { Start-RemoteServer -RemoteServer $RemoteServer -PortNumber $Port -UseStdio:$Stdio }
     "desktop" { Start-DesktopServer }
-    "all" { Start-AllServers -HostName $HostName -PortNumber $Port -UseStdio:$Stdio }
+    "all" { Start-AllServers -RemoteServer $RemoteServer -PortNumber $Port -UseStdio:$Stdio }
     "check" {
         Write-Host "✅ Dependency check completed" -ForegroundColor Green
         exit 0

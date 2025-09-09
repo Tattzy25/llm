@@ -192,7 +192,7 @@ export const PREDEFINED_MCP_SERVERS: Omit<MCPServer, 'connected' | 'lastConnecte
   {
     id: 'filesystem',
     name: 'File System',
-    endpoint: 'ws://localhost:3001',
+    endpoint: 'ws://digitalhustlelab.com:3001',
     tools: [
       {
         name: 'read_file',
@@ -223,7 +223,7 @@ export const PREDEFINED_MCP_SERVERS: Omit<MCPServer, 'connected' | 'lastConnecte
   {
     id: 'web_search',
     name: 'Web Search',
-    endpoint: 'ws://localhost:3002',
+    endpoint: 'ws://digitalhustlelab.com:3002',
     tools: [
       {
         name: 'search_web',
@@ -247,7 +247,7 @@ export const PREDEFINED_MCP_SERVERS: Omit<MCPServer, 'connected' | 'lastConnecte
   {
     id: 'database',
     name: 'Database',
-    endpoint: 'ws://localhost:3003',
+    endpoint: 'ws://digitalhustlelab.com:3003',
     tools: [
       {
         name: 'query_database',

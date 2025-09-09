@@ -10,6 +10,124 @@ The MCP implementation includes:
 - **Desktop Server** (`desktop_server.py`): Local server providing desktop-specific tools
 - **Requirements** (`requirements-mcp.txt`): Python dependencies for MCP servers
 
+## Configuration System
+
+The MCP servers now use a comprehensive JSON-based configuration system for better maintainability and flexibility.
+
+### Configuration Files
+
+- **`mcp-config.json`**: Main configuration file defining all MCP servers and their tools
+- **`mcp_config_loader.py`**: Python module for loading and validating configurations
+
+### Configuration Structure
+
+```json
+{
+  "mcpServers": {
+    "desktop": {
+      "name": "Desktop Server",
+      "description": "Local MCP server for desktop operations",
+      "type": "desktop",
+      "transport": "stdio",
+      "tools": {
+        "file_operations": {
+          "name": "File Operations",
+          "description": "Perform file operations (read, write, list, delete)",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["read", "write", "list", "delete", "move", "copy"]
+              },
+              "path": {"type": "string", "description": "File or directory path"},
+              "content": {"type": "string", "description": "Content for write operations"}
+            },
+            "required": ["operation", "path"]
+          }
+        }
+      }
+    }
+  },
+  "mcpVersion": "2024-11-05",
+  "jsonRpcVersion": "2.0"
+}
+```
+
+### Available Tools
+
+#### Desktop Server Tools
+- **file_operations**: File system operations (read, write, list, delete, move, copy)
+- **system_info**: System information and monitoring
+- **clipboard**: Clipboard read/write operations
+- **notification**: Desktop notifications
+- **application**: Application launch and control
+
+#### Remote Server Tools
+- **web_search**: Web search functionality
+- **http_request**: HTTP request handling
+- **database_query**: Database query execution
+
+### Configuration Management
+
+The system automatically validates configurations on startup and provides fallback to default settings if the configuration file is missing or invalid.
+
+```python
+from mcp_config_loader import get_config_loader
+
+# Load configuration
+loader = get_config_loader()
+
+# Get server configuration
+desktop_config = loader.get_server_config("desktop")
+
+# Get tool configuration
+file_ops_config = loader.get_tool_config("desktop", "file_operations")
+
+# Validate configuration
+is_valid = loader.validate_config()
+```
+
+### Adding New Tools
+
+1. **Update `mcp-config.json`**:
+```json
+"new_tool": {
+  "name": "New Tool",
+  "description": "Description of the new tool",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "parameter": {"type": "string", "description": "Parameter description"}
+    },
+    "required": ["parameter"]
+  }
+}
+```
+
+2. **Create tool class** in the appropriate server file:
+```python
+class NewTool(MCPTool):
+    def __init__(self):
+        config_loader = get_config_loader()
+        tool_config = config_loader.get_tool_config("server_name", "new_tool")
+
+        if tool_config:
+            schema = tool_config.get("schema", {})
+            description = tool_config.get("description", "Default")
+        else:
+            schema = {"type": "object", "properties": {}}
+            description = "Default description"
+
+        super().__init__("new_tool", description, schema)
+
+    async def execute(self, **kwargs) -> Any:
+        # Implementation here
+        pass
+```
+
+3. **Register the tool** in the server's `_register_tools` method.
+
 ## Architecture
 
 ### Remote Server
@@ -88,7 +206,7 @@ python launch.py check
 ```
 
 #### Launcher Options
-- `--host HOST`: Host for remote server (default: localhost)
+- `--host HOST`: Host for remote server (default: digitalhustlelab.com)
 - `--port PORT`: Port for remote server (auto-assigned if not specified)
 - `--stdio`: Run remote server in STDIO mode
 
@@ -116,7 +234,7 @@ python servers/remote_server.py --stdio
 import httpx
 
 # Connect to remote server
-response = httpx.post("http://localhost:3001/mcp", json={
+response = httpx.post("http://digitalhustlelab.com:3001/mcp", json={
     "jsonrpc": "2.0",
     "id": "1",
     "method": "initialize",
@@ -168,13 +286,13 @@ python servers/test.py
 
 #### Test Remote Server Health
 ```bash
-curl http://localhost:3001/health
+curl http://digitalhustlelab.com:3001/health
 ```
 
 #### Test MCP Protocol
 ```bash
 # Initialize connection
-curl -X POST http://localhost:3001/mcp \
+curl -X POST http://digitalhustlelab.com:3001/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -262,7 +380,7 @@ Both servers support configuration through:
 ### Testing
 ```bash
 # Test remote server
-curl -X POST http://localhost:3001/health
+curl -X POST http://digitalhustlelab.com:3001/health
 
 # Test desktop server (requires MCP client)
 python -c "import sys; print('Desktop server ready')"

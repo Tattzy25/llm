@@ -32,6 +32,9 @@ from pathlib import Path
 import pyperclip  # For clipboard operations
 import plyer  # For notifications
 
+# Import MCP configuration loader
+from mcp_config_loader import get_config_loader
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -86,10 +89,16 @@ class MCPTool:
 
 class FileOperationsTool(MCPTool):
     def __init__(self):
-        super().__init__(
-            "file_operations",
-            "Perform file operations (read, write, list, delete)",
-            {
+        # Load configuration
+        config_loader = get_config_loader()
+        tool_config = config_loader.get_tool_config("desktop", "file_operations")
+
+        if tool_config:
+            schema = tool_config.get("schema", {})
+            description = tool_config.get("description", "Perform file operations")
+        else:
+            # Fallback schema if config is missing
+            schema = {
                 "type": "object",
                 "properties": {
                     "operation": {
@@ -103,7 +112,9 @@ class FileOperationsTool(MCPTool):
                 },
                 "required": ["operation", "path"]
             }
-        )
+            description = "Perform file operations (read, write, list, delete)"
+
+        super().__init__("file_operations", description, schema)
 
     async def execute(self, operation: str, path: str, **kwargs) -> Any:
         path_obj = Path(path).expanduser()
@@ -165,10 +176,16 @@ class FileOperationsTool(MCPTool):
 
 class SystemInfoTool(MCPTool):
     def __init__(self):
-        super().__init__(
-            "system_info",
-            "Get system information and statistics",
-            {
+        # Load configuration
+        config_loader = get_config_loader()
+        tool_config = config_loader.get_tool_config("desktop", "system_info")
+
+        if tool_config:
+            schema = tool_config.get("schema", {})
+            description = tool_config.get("description", "Get system information and statistics")
+        else:
+            # Fallback schema if config is missing
+            schema = {
                 "type": "object",
                 "properties": {
                     "category": {
@@ -179,7 +196,9 @@ class SystemInfoTool(MCPTool):
                 },
                 "required": ["category"]
             }
-        )
+            description = "Get system information and statistics"
+
+        super().__init__("system_info", description, schema)
 
     async def execute(self, category: str) -> Dict[str, Any]:
         if category == "basic":
@@ -371,12 +390,39 @@ class MCPDesktopServer:
         self._register_resources()
 
     def _register_tools(self):
-        """Register available desktop tools"""
-        self.tools["file_operations"] = FileOperationsTool()
-        self.tools["system_info"] = SystemInfoTool()
-        self.tools["clipboard"] = ClipboardTool()
-        self.tools["notification"] = NotificationTool()
-        self.tools["application"] = ApplicationTool()
+        """Register available desktop tools from configuration"""
+        config_loader = get_config_loader()
+        server_config = config_loader.get_server_config("desktop")
+
+        if server_config and "tools" in server_config:
+            tool_configs = server_config["tools"]
+
+            # Map tool names to their implementation classes
+            tool_classes = {
+                "file_operations": FileOperationsTool,
+                "system_info": SystemInfoTool,
+                "clipboard": ClipboardTool,
+                "notification": NotificationTool,
+                "application": ApplicationTool
+            }
+
+            for tool_name, tool_config in tool_configs.items():
+                if tool_name in tool_classes:
+                    try:
+                        self.tools[tool_name] = tool_classes[tool_name]()
+                        logger.info(f"✅ Registered tool: {tool_name}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to register tool {tool_name}: {e}")
+                else:
+                    logger.warning(f"⚠️  No implementation found for tool: {tool_name}")
+        else:
+            logger.warning("⚠️  No desktop server configuration found, using default tools")
+            # Fallback to default tools if config is missing
+            self.tools["file_operations"] = FileOperationsTool()
+            self.tools["system_info"] = SystemInfoTool()
+            self.tools["clipboard"] = ClipboardTool()
+            self.tools["notification"] = NotificationTool()
+            self.tools["application"] = ApplicationTool()
 
     def _register_resources(self):
         """Register available resources"""

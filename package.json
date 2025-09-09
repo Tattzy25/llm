@@ -2,6 +2,7 @@
   "name": "llm",
   "version": "0.1.0",
   "private": true,
+  "description": "Digital Hustle Lab - LLM Application with MCP Server Ecosystem (digitalhustlelab.com)",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
@@ -26,6 +27,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@upstash/redis": "^1.35.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.542.0",

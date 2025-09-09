@@ -85,6 +85,29 @@ CUSTOM_ANTHROPIC_ENDPOINT=https://api.anthropic.com/v1/messages
 CUSTOM_GROQ_ENDPOINT=https://api.groq.com/openai/v1/chat/completions
 ```
 
+### 6. Domain Configuration
+
+This project is configured to use **digitalhustlelab.com** as the primary domain for all MCP (Model Context Protocol) servers and services.
+
+#### MCP Server Endpoints:
+- **Main Server Manager**: `digitalhustlelab.com:3000`
+- **Web Scraper Server**: `digitalhustlelab.com:3002`
+- **Database Connector Server**: `digitalhustlelab.com:3003`
+- **AI Assistant Server**: `digitalhustlelab.com:3004`
+- **Desktop Server**: `digitalhustlelab.com:3005`
+- **Remote Server**: `digitalhustlelab.com:3001`
+
+#### WebSocket Endpoints:
+- **File System**: `ws://digitalhustlelab.com:3001`
+- **Web Search**: `ws://digitalhustlelab.com:3002`
+- **Database**: `ws://digitalhustlelab.com:3003`
+
+If you need to use a different domain, update the configuration files in the `servers/` directory:
+- `mcp-config-expanded.json`
+- `mcp-config.json`
+- Individual server Python files
+- `lib/mcp.ts` (TypeScript client)
+
 ## Features
 
 ### Party Line Chat Interface

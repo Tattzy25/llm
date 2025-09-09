@@ -1,0 +1,194 @@
+{
+  "mcpServers": {
+    "desktop": {
+      "name": "Desktop Server",
+      "description": "Local MCP server for desktop operations",
+      "type": "desktop",
+      "transport": "stdio",
+      "tools": {
+        "file_operations": {
+          "name": "File Operations",
+          "description": "Perform file operations (read, write, list, delete)",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["read", "write", "list", "delete", "move", "copy"],
+                "description": "Operation to perform"
+              },
+              "path": {
+                "type": "string",
+                "description": "File or directory path"
+              },
+              "content": {
+                "type": "string",
+                "description": "Content for write operations"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Destination path for move/copy"
+              }
+            },
+            "required": ["operation", "path"]
+          }
+        },
+        "system_info": {
+          "name": "System Information",
+          "description": "Get system information and monitoring data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["cpu", "memory", "disk", "network", "processes", "platform"],
+                "description": "Type of system information to retrieve"
+              }
+            },
+            "required": ["operation"]
+          }
+        },
+        "clipboard": {
+          "name": "Clipboard Operations",
+          "description": "Read and write clipboard content",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["read", "write"],
+                "description": "Clipboard operation"
+              },
+              "content": {
+                "type": "string",
+                "description": "Content to write to clipboard"
+              }
+            },
+            "required": ["operation"]
+          }
+        },
+        "notification": {
+          "name": "Desktop Notifications",
+          "description": "Send desktop notifications",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Notification title"
+              },
+              "message": {
+                "type": "string",
+                "description": "Notification message"
+              },
+              "timeout": {
+                "type": "number",
+                "description": "Timeout in seconds"
+              }
+            },
+            "required": ["title", "message"]
+          }
+        },
+        "application": {
+          "name": "Application Control",
+          "description": "Launch and control desktop applications",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": ["launch", "list", "close"],
+                "description": "Application operation"
+              },
+              "app_name": {
+                "type": "string",
+                "description": "Application name or path"
+              }
+            },
+            "required": ["operation"]
+          }
+        }
+      }
+    },
+    "remote": {
+      "name": "Remote Server",
+      "description": "Remote MCP server for web and network operations",
+      "type": "remote",
+      "transport": "websocket",
+      "host": "digitalhustlelab.com",
+      "port": 3001,
+      "tools": {
+        "web_search": {
+          "name": "Web Search",
+          "description": "Search the web for information",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query"
+              },
+              "max_results": {
+                "type": "number",
+                "description": "Maximum number of results",
+                "default": 10
+              }
+            },
+            "required": ["query"]
+          }
+        },
+        "http_request": {
+          "name": "HTTP Request",
+          "description": "Make HTTP requests to web services",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "DELETE"],
+                "description": "HTTP method"
+              },
+              "url": {
+                "type": "string",
+                "description": "Request URL"
+              },
+              "headers": {
+                "type": "object",
+                "description": "Request headers"
+              },
+              "body": {
+                "type": "string",
+                "description": "Request body"
+              }
+            },
+            "required": ["method", "url"]
+          }
+        },
+        "database_query": {
+          "name": "Database Query",
+          "description": "Execute database queries",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "connection_string": {
+                "type": "string",
+                "description": "Database connection string"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "parameters": {
+                "type": "array",
+                "description": "Query parameters"
+              }
+            },
+            "required": ["connection_string", "query"]
+          }
+        }
+      }
+    }
+  },
+  "mcpVersion": "2024-11-05",
+  "jsonRpcVersion": "2.0"
+}
