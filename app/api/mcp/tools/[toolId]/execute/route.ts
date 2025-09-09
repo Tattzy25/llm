@@ -3,9 +3,9 @@ import { ALL_MCP_TOOLS } from '@/lib/mcp/tools'
 import { errorPayload, errorToStatus } from '@/lib/mcp/http'
 import { MCPValidationError } from '@/lib/mcp/utils/error-handling'
 
-export async function POST(req: NextRequest, { params }: { params: { toolId: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ toolId: string }> }) {
 	try {
-		const toolId = params.toolId
+		const { toolId } = await ctx.params
 		const tool = ALL_MCP_TOOLS.find(t => t.name === toolId)
 		if (!tool) throw new MCPValidationError(`Unknown tool: ${toolId}`, { code: 'TOOL_NOT_FOUND', context: toolId })
 

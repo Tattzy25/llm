@@ -1,1 +1,1 @@
-export type { MCPTool, MCPToolParameter, MCPParameterType, MCPExecutionResult, ToolParameter } from './types/index'
+export type { MCPTool, MCPToolParameter, MCPParameterType, MCPExecutionResult, ToolParameter, MCPConfig } from './types/index'

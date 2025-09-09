@@ -10,16 +10,17 @@ export function errorToStatus(err: unknown): number {
   return 500
 }
 
+type ErrorLike = Partial<MCPError> & { name?: string; code?: string; message?: string; hint?: string; context?: string }
+
 export function errorPayload(err: unknown) {
-  const e = err as MCPError
+  const e = (err as ErrorLike) || {}
   const base = {
     error: true,
-    name: (e as any)?.name ?? 'Error',
-    code: (e as any)?.code ?? 'UNKNOWN',
-    message: (e as any)?.message ?? 'Unexpected error',
+    name: e.name ?? 'Error',
+    code: e.code ?? 'UNKNOWN',
+    message: e.message ?? 'Unexpected error',
   }
-  const hint = (e as any)?.hint
-  const context = (e as any)?.context
+  const { hint, context } = e
   return {
     ...base,
     ...(hint ? { hint } : {}),

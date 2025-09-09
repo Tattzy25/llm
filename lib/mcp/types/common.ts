@@ -3,6 +3,8 @@ export interface MCPExecutionResult {
   data?: unknown
   error?: string
   executionTime?: number
+  toolName?: string
+  serverId?: string
 }
 
 // Back-compat alias used in components

@@ -7,9 +7,10 @@
  * Combines connection management, tool execution, health monitoring, and WebSocket handling.
  */
 
-import type { MCPConnection, MCPExecutionResult, MCPHealthStatus } from '../types'
+import type { MCPExecutionResult } from '../types'
+import type { MCPConnection, MCPHealthStatus } from '../types/server'
 import { getMCPConfig, MCP_SETTINGS } from '../config'
-import { createLogger, validateToolParameters } from '../utils'
+import { createLogger, validateToolParameters } from '../utils/index'
 import { getToolByName } from '../tools/index'
 import { ConnectionManager } from './connection-manager'
 import { ToolExecutor } from './tool-executor'

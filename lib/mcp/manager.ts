@@ -9,7 +9,7 @@
 
 import type { MCPTool, MCPExecutionResult } from './types'
 import { getMCPConfig } from './config'
-import { MCPClient } from './client'
+import { MCPClient } from './client/index'
 import { ALL_MCP_TOOLS, getToolsByServer } from './tools/index'
 import { createResult } from './utils'
 

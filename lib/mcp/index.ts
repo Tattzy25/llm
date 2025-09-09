@@ -11,7 +11,7 @@
 export * from './types'
 export * from './config'
 export * from './utils'
-export * from './client'
+export * from './client/index'
 export * from './tools/index'
 export * from './manager'
 export * from './hooks'
@@ -19,7 +19,7 @@ export * from './hooks'
 // Re-export commonly used functions and classes
 export { getMCPManager, startMCPServers, executeMCPTool, getMCPServerStatus, getMCPSystemHealth, getMCPTools } from './manager'
 export { getMCPConfig } from './config'
-export { MCPClient } from './client'
+export { MCPClient } from './client/index'
 export { ALL_MCP_TOOLS, getToolsByCategory, getToolByName, getToolsByServer } from './tools/index'
 
 // Default export for convenience
