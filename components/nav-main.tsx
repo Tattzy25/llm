@@ -82,6 +82,8 @@ export function NavMain({
                                 onViewChange("mcp-servers")
                               } else if (subItem.title === "Tools") {
                                 onViewChange("mcp-tools")
+                              } else if (subItem.title === "Control Panel") {
+                                onViewChange("mcp-control")
                               }
                             }
                           }}

@@ -1,227 +1,341 @@
 "use client"
 
-/**
- * MCP Connections Component
- *
- * Provides UI for managing MCP server connections and tool access.
- * Allows users to connect/disconnect from MCP servers and view available tools.
- */
+import React, { useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import {
+  Search,
+  Wrench,
+  Play,
+  Globe,
+  Database,
+  Bot,
+  Settings,
+  Loader2,
+  CheckCircle,
+  XCircle
+} from 'lucide-react'
+import { getMCPManager } from '@/lib/mcp/manager'
+import { ALL_MCP_TOOLS } from '@/lib/mcp/tools'
+import { MCPExecutionResult, MCPTool, ToolParameter } from '@/lib/mcp/types'
 
-import * as React from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useMCP, PREDEFINED_MCP_SERVERS } from "@/lib/mcp"
-import { CheckCircle, XCircle, Loader2, Server, Wrench, Plus } from "lucide-react"
+interface ToolExecutionDialogProps {
+  tool: MCPTool | null
+  isOpen: boolean
+  onClose: () => void
+}
 
-export function MCPConnections() {
-  const { servers, isConnecting, connectServer, disconnectServer, getAvailableTools } = useMCP()
-  const [connectingServerId, setConnectingServerId] = React.useState<string | null>(null)
+function ToolExecutionDialog({ tool, isOpen, onClose }: ToolExecutionDialogProps) {
+  const [parameters, setParameters] = useState<Record<string, unknown>>({})
+  const [executing, setExecuting] = useState(false)
+  const [result, setResult] = useState<MCPExecutionResult | null>(null)
 
-  const handleConnect = async (serverConfig: typeof PREDEFINED_MCP_SERVERS[0]) => {
-    setConnectingServerId(serverConfig.id)
+  const handleExecute = async () => {
+    if (!tool) return
+
+    setExecuting(true)
     try {
-      await connectServer(serverConfig)
+      const manager = getMCPManager()
+      const executionResult = await manager.executeTool(tool.name, parameters)
+      setResult(executionResult)
+    } catch (error) {
+      setResult({
+        success: false,
+        error: String(error),
+        executionTime: Date.now()
+      } as MCPExecutionResult)
     } finally {
-      setConnectingServerId(null)
+      setExecuting(false)
     }
   }
 
-  const handleDisconnect = async (serverId: string) => {
-    await disconnectServer(serverId)
+  const handleParameterChange = (paramName: string, value: unknown) => {
+    setParameters(prev => ({ ...prev, [paramName]: value }))
   }
 
-  const availableTools = getAvailableTools()
+  const getParameterInput = (paramName: string, paramConfig: { type: string; description: string; required?: boolean; default?: unknown }) => {
+    const value = parameters[paramName] || paramConfig.default || ''
+
+    switch (paramConfig.type) {
+      case 'string':
+        return (
+          <Input
+            type="text"
+            value={String(value)}
+            onChange={(e) => handleParameterChange(paramName, e.target.value)}
+            placeholder={paramConfig.description}
+            required={paramConfig.required}
+          />
+        )
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value as number}
+            onChange={(e) => handleParameterChange(paramName, Number(e.target.value))}
+            placeholder={paramConfig.description}
+            required={paramConfig.required}
+          />
+        )
+      case 'boolean':
+        return (
+          <Select
+            value={String(value)}
+            onValueChange={(val) => handleParameterChange(paramName, val === 'true')}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">True</SelectItem>
+              <SelectItem value="false">False</SelectItem>
+            </SelectContent>
+          </Select>
+        )
+      case 'object':
+        return (
+          <Textarea
+            value={typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+            onChange={(e) => {
+              try {
+                handleParameterChange(paramName, JSON.parse(e.target.value))
+              } catch {
+                handleParameterChange(paramName, e.target.value)
+              }
+            }}
+            placeholder={`${paramConfig.description} (JSON format)`}
+            rows={4}
+          />
+        )
+      default:
+        return (
+          <Input
+            type="text"
+            value={String(value)}
+            onChange={(e) => handleParameterChange(paramName, e.target.value)}
+            placeholder={paramConfig.description}
+            required={paramConfig.required}
+          />
+        )
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Execute {tool?.name}</DialogTitle>
+          <DialogDescription>{tool?.description}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {tool?.parameters && Object.entries(tool.parameters).map(([paramName, paramConfig]: [string, ToolParameter]) => (
+            <div key={paramName} className="space-y-2">
+              <Label htmlFor={paramName}>
+                {paramName}
+                {paramConfig.required && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              {getParameterInput(paramName, paramConfig)}
+              <p className="text-sm text-muted-foreground">{paramConfig.description}</p>
+            </div>
+          ))}
+
+          {result && (
+            <div className="mt-4 p-4 border rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                {result.success ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500" />
+                )}
+                <span className="font-medium">
+                  {result.success ? 'Success' : 'Error'}
+                </span>
+              </div>
+              <pre className="text-sm bg-muted p-2 rounded overflow-auto max-h-40">
+                {result.success
+                  ? JSON.stringify(result.data, null, 2)
+                  : result.error
+                }
+              </pre>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-4">
+            <Button onClick={handleExecute} disabled={executing} className="flex-1">
+              {executing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Executing...
+                </>
+              ) : (
+                <>
+                  <Play className="mr-2 h-4 w-4" />
+                  Execute Tool
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function MCPConnectionsPage() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedTool, setSelectedTool] = useState<MCPTool | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const filteredTools = ALL_MCP_TOOLS.filter(tool => {
+    const matchesSearch = tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === 'all' || tool.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'web-scraping': return <Globe className="h-5 w-5" />
+      case 'database': return <Database className="h-5 w-5" />
+      case 'ai': return <Bot className="h-5 w-5" />
+      case 'management': return <Settings className="h-5 w-5" />
+      default: return <Wrench className="h-5 w-5" />
+    }
+  }
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'web-scraping': return 'bg-blue-500'
+      case 'database': return 'bg-green-500'
+      case 'ai': return 'bg-purple-500'
+      case 'management': return 'bg-orange-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const handleToolExecute = (tool: MCPTool) => {
+    setSelectedTool(tool)
+    setDialogOpen(true)
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">MCP Connections</h2>
+          <h2 className="text-2xl font-bold tracking-tight">MCP Tools</h2>
           <p className="text-muted-foreground">
-            Connect to external MCP servers to access additional tools and data sources.
+            Discover and execute Model Context Protocol tools
           </p>
         </div>
-        <Badge variant="secondary" className="flex items-center gap-1">
-          <Server className="h-3 w-3" />
-          {servers.filter(s => s.connected).length} Connected
-        </Badge>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Available Servers */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Available Servers
-            </CardTitle>
-            <CardDescription>
-              Connect to predefined MCP servers to extend functionality.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-4">
-                {PREDEFINED_MCP_SERVERS.map((serverConfig) => {
-                  const existingServer = servers.find(s => s.id === serverConfig.id)
-                  const isConnected = existingServer?.connected || false
-                  const isLoading = connectingServerId === serverConfig.id
-
-                  return (
-                    <div
-                      key={serverConfig.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{serverConfig.name}</h4>
-                          {isConnected ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-gray-400" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {serverConfig.endpoint}
-                        </p>
-                        <div className="flex gap-1 mt-2">
-                          {serverConfig.tools.map((tool) => (
-                            <Badge key={tool.name} variant="outline" className="text-xs">
-                              {tool.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <Button
-                        variant={isConnected ? "destructive" : "default"}
-                        size="sm"
-                        onClick={() =>
-                          isConnected
-                            ? handleDisconnect(serverConfig.id)
-                            : handleConnect(serverConfig)
-                        }
-                        disabled={isLoading || isConnecting}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : isConnected ? (
-                          "Disconnect"
-                        ) : (
-                          "Connect"
-                        )}
-                      </Button>
-                    </div>
-                  )
-                })}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Connected Servers & Tools */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Available Tools
-            </CardTitle>
-            <CardDescription>
-              Tools available from connected MCP servers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              {availableTools.length > 0 ? (
-                <div className="space-y-4">
-                  {availableTools.map((tool, index) => (
-                    <div key={`${tool.name}-${index}`} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{tool.name}</h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {tool.description}
-                          </p>
-                          {Object.keys(tool.parameters).length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Parameters:
-                              </p>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(tool.parameters).map(([param, config]) => (
-                                  <Badge
-                                    key={param}
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {param}: {config.type}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[200px] text-center">
-                  <Wrench className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="font-medium text-muted-foreground">No Tools Available</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Connect to MCP servers to access additional tools.
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+      {/* Filters */}
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tools..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="web-scraping">Web Scraping</SelectItem>
+            <SelectItem value="database">Database</SelectItem>
+            <SelectItem value="ai">AI Assistant</SelectItem>
+            <SelectItem value="management">Management</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Connection Status */}
-      {servers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Connection Status</CardTitle>
-            <CardDescription>
-              Current status of all MCP server connections.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {servers.map((server) => (
-                <div key={server.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {server.connected ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
-                    <div>
-                      <p className="font-medium">{server.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {server.endpoint}
-                      </p>
-                    </div>
+      {/* Tool Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredTools.map((tool) => (
+          <Card key={tool.name} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${getCategoryColor(tool.category || 'default')}`}>
+                    {getCategoryIcon(tool.category || 'default')}
                   </div>
-                  <div className="text-right">
-                    <Badge variant={server.connected ? "default" : "secondary"}>
-                      {server.connected ? "Connected" : "Disconnected"}
+                  <div>
+                    <CardTitle className="text-lg">{tool.name}</CardTitle>
+                    <Badge variant="secondary" className="mt-1">
+                      {tool.category || 'general'}
                     </Badge>
-                    {server.lastConnected && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Last connected: {server.lastConnected.toLocaleString()}
-                      </p>
-                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                {tool.description}
+              </CardDescription>
+
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  <strong>Server:</strong> {tool.serverId}
+                </div>
+
+                {tool.parameters && Object.keys(tool.parameters).length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Parameters:</strong> {Object.keys(tool.parameters).length} required
+                  </div>
+                )}
+
+                <Button
+                  onClick={() => handleToolExecute(tool)}
+                  className="w-full"
+                  size="sm"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  Execute Tool
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredTools.length === 0 && (
+        <div className="text-center py-12">
+          <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No tools found</h3>
+          <p className="text-muted-foreground">
+            Try adjusting your search or category filter
+          </p>
+        </div>
+      )}
+
+      {/* Execution Dialog */}
+      {selectedTool && (
+        <ToolExecutionDialog
+          tool={selectedTool}
+          isOpen={dialogOpen}
+          onClose={() => {
+            setDialogOpen(false)
+            setSelectedTool(null)
+          }}
+        />
       )}
     </div>
   )

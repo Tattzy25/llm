@@ -426,4 +426,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(fastapi_app, host="digitalhustlelab.com", port=3004)
+    uvicorn.run(fastapi_app, host="api.digitalhustlelab.com", port=3004)

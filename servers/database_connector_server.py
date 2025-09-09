@@ -521,4 +521,4 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(fastapi_app, host="digitalhustlelab.com", port=3003)
+    uvicorn.run(fastapi_app, host="api.digitalhustlelab.com", port=3003)

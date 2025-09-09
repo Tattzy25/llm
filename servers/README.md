@@ -206,7 +206,7 @@ python launch.py check
 ```
 
 #### Launcher Options
-- `--host HOST`: Host for remote server (default: digitalhustlelab.com)
+- `--host HOST`: Host for remote server (default: api.digitalhustlelab.com)
 - `--port PORT`: Port for remote server (auto-assigned if not specified)
 - `--stdio`: Run remote server in STDIO mode
 
@@ -234,7 +234,7 @@ python servers/remote_server.py --stdio
 import httpx
 
 # Connect to remote server
-response = httpx.post("http://digitalhustlelab.com:3001/mcp", json={
+response = httpx.post("http://api.digitalhustlelab.com:3001/mcp", json={
     "jsonrpc": "2.0",
     "id": "1",
     "method": "initialize",
@@ -286,13 +286,13 @@ python servers/test.py
 
 #### Test Remote Server Health
 ```bash
-curl http://digitalhustlelab.com:3001/health
+curl http://api.digitalhustlelab.com:3001/health
 ```
 
 #### Test MCP Protocol
 ```bash
 # Initialize connection
-curl -X POST http://digitalhustlelab.com:3001/mcp \
+curl -X POST http://api.digitalhustlelab.com:3001/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -380,7 +380,7 @@ Both servers support configuration through:
 ### Testing
 ```bash
 # Test remote server
-curl -X POST http://digitalhustlelab.com:3001/health
+curl -X POST http://api.digitalhustlelab.com:3001/health
 
 # Test desktop server (requires MCP client)
 python -c "import sys; print('Desktop server ready')"

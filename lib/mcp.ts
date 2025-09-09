@@ -15,6 +15,30 @@
 import * as React from "react"
 import { errorUtils } from "@/components/error-boundary"
 
+// MCP Server configurations with environment variable support
+const MCP_CONFIG = {
+  REMOTE_SERVER: {
+    endpoint: process.env.MCP_REMOTE_SERVER_URL || 'ws://api.digitalhustlelab.com:3001',
+    httpUrl: process.env.MCP_REMOTE_SERVER_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://api.digitalhustlelab.com:3001'
+  },
+  WEB_SCRAPER: {
+    endpoint: process.env.MCP_WEB_SCRAPER_URL || 'ws://api.digitalhustlelab.com:3002',
+    httpUrl: process.env.MCP_WEB_SCRAPER_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://api.digitalhustlelab.com:3002'
+  },
+  DATABASE: {
+    endpoint: process.env.MCP_DATABASE_URL || 'ws://api.digitalhustlelab.com:3003',
+    httpUrl: process.env.MCP_DATABASE_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://api.digitalhustlelab.com:3003'
+  },
+  AI_ASSISTANT: {
+    endpoint: process.env.MCP_AI_ASSISTANT_URL || 'ws://api.digitalhustlelab.com:3004',
+    httpUrl: process.env.MCP_AI_ASSISTANT_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://api.digitalhustlelab.com:3004'
+  },
+  SERVER_MANAGER: {
+    endpoint: process.env.MCP_SERVER_MANAGER_URL || 'ws://api.digitalhustlelab.com:3000',
+    httpUrl: process.env.MCP_SERVER_MANAGER_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://api.digitalhustlelab.com:3000'
+  }
+}
+
 export interface MCPServer {
   id: string
   name: string
@@ -31,6 +55,7 @@ export interface MCPTool {
     type: string
     description: string
     required?: boolean
+    default?: unknown
   }>
   handler: (params: Record<string, unknown>) => Promise<unknown>
 }
@@ -187,78 +212,321 @@ export function useMCP() {
   }
 }
 
-// Predefined MCP server configurations
+// Predefined MCP server configurations - REAL SERVERS
 export const PREDEFINED_MCP_SERVERS: Omit<MCPServer, 'connected' | 'lastConnected'>[] = [
   {
-    id: 'filesystem',
-    name: 'File System',
-    endpoint: 'ws://digitalhustlelab.com:3001',
+    id: 'web-scraper-server',
+    name: 'Web Scraper Server',
+    endpoint: MCP_CONFIG.REMOTE_SERVER.endpoint,
     tools: [
       {
-        name: 'read_file',
-        description: 'Read contents of a file',
+        name: 'web_scrape',
+        description: 'Extract content from web pages with advanced parsing',
         parameters: {
-          path: { type: 'string', description: 'File path' }
+          url: { type: 'string', description: 'URL to scrape', required: true },
+          selectors: { type: 'object', description: 'CSS selectors for content extraction' },
+          headers: { type: 'object', description: 'Custom headers for the request' }
         },
         handler: async (params: Record<string, unknown>) => {
-          // Simulate file reading
-          const path = params.path as string
-          return { content: `Contents of ${path}` }
+          // Real implementation would connect to the actual MCP server
+          const response = await fetch(`${MCP_CONFIG.REMOTE_SERVER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'web_scrape',
+              parameters: params
+            })
+          })
+          return response.json()
         }
       },
       {
-        name: 'list_directory',
-        description: 'List contents of a directory',
+        name: 'web_search',
+        description: 'Perform intelligent web searches with filtering',
         parameters: {
-          path: { type: 'string', description: 'Directory path' }
+          query: { type: 'string', description: 'Search query', required: true },
+          maxResults: { type: 'number', description: 'Maximum number of results', default: 10 },
+          filters: { type: 'object', description: 'Search filters and options' }
         },
         handler: async (params: Record<string, unknown>) => {
-          // Simulate directory listing
-          const path = params.path as string
-          return { files: ['file1.txt', 'file2.js', 'subdir/'], directory: path }
+          const response = await fetch(`${MCP_CONFIG.REMOTE_SERVER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'web_search',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'content_analysis',
+        description: 'Analyze web content for insights and patterns',
+        parameters: {
+          content: { type: 'string', description: 'Content to analyze', required: true },
+          analysisType: { type: 'string', description: 'Type of analysis to perform' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.REMOTE_SERVER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'content_analysis',
+              parameters: params
+            })
+          })
+          return response.json()
         }
       }
     ]
   },
   {
-    id: 'web_search',
-    name: 'Web Search',
-    endpoint: 'ws://digitalhustlelab.com:3002',
+    id: 'database-connector-server',
+    name: 'Database Connector Server',
+    endpoint: MCP_CONFIG.WEB_SCRAPER.endpoint,
     tools: [
       {
-        name: 'search_web',
-        description: 'Search the web for information',
+        name: 'database_query',
+        description: 'Execute queries across multiple database types',
         parameters: {
-          query: { type: 'string', description: 'Search query' }
+          connectionString: { type: 'string', description: 'Database connection string', required: true },
+          query: { type: 'string', description: 'SQL query to execute', required: true },
+          dbType: { type: 'string', description: 'Database type (postgres, mysql, sqlite, etc.)', required: true }
         },
         handler: async (params: Record<string, unknown>) => {
-          // Simulate web search
-          const query = params.query as string
-          return {
-            results: [
-              { title: `Results for "${query}"`, url: 'https://example.com/1', snippet: 'Snippet 1' },
-              { title: 'Result 2', url: 'https://example.com/2', snippet: 'Snippet 2' }
-            ]
-          }
+          const response = await fetch(`${MCP_CONFIG.WEB_SCRAPER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'database_query',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'database_schema',
+        description: 'Retrieve and analyze database schemas',
+        parameters: {
+          connectionString: { type: 'string', description: 'Database connection string', required: true },
+          dbType: { type: 'string', description: 'Database type', required: true },
+          tableName: { type: 'string', description: 'Specific table name (optional)' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.WEB_SCRAPER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'database_schema',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'database_backup',
+        description: 'Create backups and manage database operations',
+        parameters: {
+          connectionString: { type: 'string', description: 'Database connection string', required: true },
+          dbType: { type: 'string', description: 'Database type', required: true },
+          backupPath: { type: 'string', description: 'Path to save backup', required: true },
+          options: { type: 'object', description: 'Backup options and configuration' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.WEB_SCRAPER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'database_backup',
+              parameters: params
+            })
+          })
+          return response.json()
         }
       }
     ]
   },
   {
-    id: 'database',
-    name: 'Database',
-    endpoint: 'ws://digitalhustlelab.com:3003',
+    id: 'ai-assistant-server',
+    name: 'AI Assistant Server',
+    endpoint: MCP_CONFIG.DATABASE.endpoint,
     tools: [
       {
-        name: 'query_database',
-        description: 'Execute a database query',
+        name: 'content_generator',
+        description: 'Generate content using multiple AI models',
         parameters: {
-          query: { type: 'string', description: 'SQL query' }
+          prompt: { type: 'string', description: 'Content generation prompt', required: true },
+          model: { type: 'string', description: 'AI model to use', default: 'gpt-4' },
+          options: { type: 'object', description: 'Generation options and parameters' }
         },
         handler: async (params: Record<string, unknown>) => {
-          // Simulate database query
-          const query = params.query as string
-          return { rows: [{ id: 1, name: 'Example', query: query }] }
+          const response = await fetch(`${MCP_CONFIG.DATABASE.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'content_generator',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'code_analyzer',
+        description: 'Analyze and improve code quality',
+        parameters: {
+          code: { type: 'string', description: 'Code to analyze', required: true },
+          language: { type: 'string', description: 'Programming language', required: true },
+          analysisType: { type: 'string', description: 'Type of analysis (lint, complexity, security)' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.DATABASE.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'code_analyzer',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'data_analyzer',
+        description: 'Process and analyze datasets with ML capabilities',
+        parameters: {
+          data: { type: 'object', description: 'Dataset to analyze', required: true },
+          analysisType: { type: 'string', description: 'Type of analysis (statistics, ml, visualization)', required: true },
+          options: { type: 'object', description: 'Analysis options and parameters' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.DATABASE.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'data_analyzer',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      }
+    ]
+  },
+  {
+    id: 'mcp-server-manager',
+    name: 'MCP Server Manager',
+    endpoint: MCP_CONFIG.SERVER_MANAGER.endpoint,
+    tools: [
+      {
+        name: 'start_mcp_server',
+        description: 'Start a specific MCP server',
+        parameters: {
+          server_name: { type: 'string', description: 'Name of the MCP server to start', required: true }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'start_mcp_server',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'stop_mcp_server',
+        description: 'Stop a specific MCP server',
+        parameters: {
+          server_name: { type: 'string', description: 'Name of the MCP server to stop', required: true }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'stop_mcp_server',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'get_mcp_server_status',
+        description: 'Get status of MCP servers',
+        parameters: {
+          server_name: { type: 'string', description: 'Specific server name (optional)' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'get_mcp_server_status',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'list_mcp_tools',
+        description: 'List available tools from MCP servers',
+        parameters: {
+          server_name: { type: 'string', description: 'Specific server name (optional)' }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'list_mcp_tools',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'execute_mcp_tool',
+        description: 'Execute a tool on a specific MCP server',
+        parameters: {
+          server_name: { type: 'string', description: 'Name of the MCP server', required: true },
+          tool_name: { type: 'string', description: 'Name of the tool to execute', required: true },
+          parameters: { type: 'object', description: 'Tool parameters', required: true }
+        },
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'execute_mcp_tool',
+              parameters: params
+            })
+          })
+          return response.json()
+        }
+      },
+      {
+        name: 'get_system_health',
+        description: 'Get overall system health and MCP server statistics',
+        parameters: {},
+        handler: async (params: Record<string, unknown>) => {
+          const response = await fetch(`${MCP_CONFIG.SERVER_MANAGER.httpUrl}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: 'get_system_health',
+              parameters: params
+            })
+          })
+          return response.json()
         }
       }
     ]

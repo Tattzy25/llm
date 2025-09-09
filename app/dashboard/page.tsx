@@ -19,18 +19,19 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { CharacterSelector } from "@/components/character-selector"
 import { ModelSelector } from "@/components/model-selector"
 import { MultiChat } from "@/components/multi-chat"
-import { MCPConnections } from "@/components/mcp-connections"
+import { MCPConnectionsPage } from "@/components/mcp-connections"
 import { MCPServerManager } from "@/components/mcp-server-manager"
 import { MCPTools } from "@/components/mcp-tools"
+import { MCPControlPanel } from "@/components/mcp-control-panel"
 import { useState } from "react"
 
 export default function Page() {
-  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools">("dashboard")
+  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control">("dashboard")
   const [selectedCharacter, setSelectedCharacter] = useState("assistant")
   const [selectedModel, setSelectedModel] = useState("gpt-4")
 
   const handleViewChange = (view: string) => {
-    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools") {
+    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control") {
       setActiveView(view)
       console.log("🔄 Switching to view:", view)
     }
@@ -56,7 +57,8 @@ export default function Page() {
                      activeView === "models" ? "Models" :
                      activeView === "mcp" ? "MCP Connections" :
                      activeView === "mcp-servers" ? "MCP Servers" :
-                     activeView === "mcp-tools" ? "MCP Tools" : "Building Your Application"}
+                     activeView === "mcp-tools" ? "MCP Tools" :
+                     activeView === "mcp-control" ? "MCP Control Panel" : "Building Your Application"}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
@@ -67,7 +69,8 @@ export default function Page() {
                      activeView === "models" ? "Choose Model" :
                      activeView === "mcp" ? "Manage Connections" :
                      activeView === "mcp-servers" ? "Configure Servers" :
-                     activeView === "mcp-tools" ? "Available Tools" : "Data Fetching"}
+                     activeView === "mcp-tools" ? "Available Tools" :
+                     activeView === "mcp-control" ? "System Control" : "Data Fetching"}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
@@ -92,7 +95,7 @@ export default function Page() {
           />
         ) : activeView === "mcp" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            <MCPConnections />
+            <MCPConnectionsPage />
           </div>
         ) : activeView === "mcp-servers" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -101,6 +104,10 @@ export default function Page() {
         ) : activeView === "mcp-tools" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             <MCPTools />
+          </div>
+        ) : activeView === "mcp-control" ? (
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <MCPControlPanel />
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

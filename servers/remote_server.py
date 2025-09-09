@@ -331,7 +331,7 @@ async def handle_stdio():
 
 def main():
     parser = argparse.ArgumentParser(description="LLM Remote MCP Server")
-    parser.add_argument("--host", default="digitalhustlelab.com", help="Host to bind to")
+    parser.add_argument("--host", default="api.digitalhustlelab.com", help="Host to bind to")
     parser.add_argument("--port", type=int, default=3001, help="Port to bind to")
     parser.add_argument("--stdio", action="store_true", help="Run in STDIO mode for local clients")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])

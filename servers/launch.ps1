@@ -3,7 +3,7 @@
 
 param(
     [string]$Command = "menu",
-    [string]$RemoteServer = "digitalhustlelab.com",
+    [string]$RemoteServer = "api.api.digitalhustlelab.com",
     [int]$Port,
     [switch]$Stdio
 )
@@ -44,7 +44,7 @@ try {
 }
 
 function Start-RemoteServer {
-    param([string]$RemoteServer = "digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
+    param([string]$RemoteServer = "api.digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
 
     if (-not $PortNumber) {
         # Find free port
@@ -76,7 +76,7 @@ function Start-DesktopServer {
 }
 
 function Start-AllServers {
-    param([string]$RemoteServer = "digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
+    param([string]$RemoteServer = "api.digitalhustlelab.com", [int]$PortNumber, [switch]$UseStdio)
 
     Write-Host "🚀 Starting Both MCP Servers..." -ForegroundColor Green
     & python launch.py all --host $RemoteServer $(if ($PortNumber) { "--port $PortNumber" }) $(if ($UseStdio) { "--stdio" })

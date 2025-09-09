@@ -216,7 +216,7 @@ print(result['result']['content'])
 ```python
 # Execute SQL query
 result = await execute_mcp_tool("database_connector", "database_query", {
-    "connection_string": "postgresql://user:pass@digitalhustlelab.com:5432/mydb",
+    "connection_string": "postgresql://user:pass@api.digitalhustlelab.com:5432/mydb",
     "query": "SELECT * FROM users WHERE active = true",
     "parameters": []
 })
@@ -251,7 +251,7 @@ print(result['result']['content'])
 ### System Health Endpoint
 
 ```bash
-curl http://digitalhustlelab.com:3000/health
+curl http://api.digitalhustlelab.com:3000/health
 ```
 
 Response:

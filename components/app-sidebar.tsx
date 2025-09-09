@@ -173,6 +173,10 @@ const data = {
           title: "Tools",
           url: "#",
         },
+        {
+          title: "Control Panel",
+          url: "#",
+        },
       ],
     },
   ],

@@ -115,7 +115,7 @@
       "description": "Remote MCP server for web and network operations",
       "type": "remote",
       "transport": "websocket",
-      "host": "digitalhustlelab.com",
+      "host": "api.digitalhustlelab.com",
       "port": 3001,
       "tools": {
         "web_search": {
