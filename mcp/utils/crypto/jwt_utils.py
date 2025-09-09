@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, Any, Union
 
 from .crypto_utils import MCPCryptoUtils
-from mcp.core.utils.validation import MCPValidationError
+from ...core.utils.validation import MCPValidationError
 
 
 class MCPJWTUtils:

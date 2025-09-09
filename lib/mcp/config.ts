@@ -43,6 +43,21 @@ export const MCP_CONFIG = {
     httpUrl: process.env.MCP_SERVER_MANAGER_URL?.replace('ws://', 'http://').replace('wss://', 'https://'),
     timeout: 30000,
     retries: 0 // NO RETRIES - PRODUCTION READY
+  } as MCPConfig,
+
+  // Built-in local servers - no external dependencies
+  DESKTOP: {
+    endpoint: 'ws://localhost:3001',
+    httpUrl: 'http://localhost:3001',
+    timeout: 30000,
+    retries: 0
+  } as MCPConfig,
+
+  FILESYSTEM: {
+    endpoint: 'builtin://filesystem',
+    httpUrl: 'builtin://filesystem',
+    timeout: 10000,
+    retries: 0
   } as MCPConfig
 }
 

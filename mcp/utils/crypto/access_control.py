@@ -10,7 +10,7 @@ import re
 from typing import Dict, List, Optional, Set, Any
 
 from .models import MCPPermission, MCPRole
-from mcp.core.utils.validation import MCPValidationError
+from ...core.utils.validation import MCPValidationError
 
 
 class MCPAccessControl:

@@ -9,7 +9,7 @@ Logging utilities for MCP servers.
 import logging
 from typing import Optional
 
-from ..core.utils.validation import MCPValidationError
+from ...core.utils.validation import MCPValidationError
 
 
 class MCPLogger:

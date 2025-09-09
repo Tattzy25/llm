@@ -210,6 +210,8 @@ export function MCPConnectionsPage() {
       case 'database': return <Database className="h-5 w-5" />
       case 'ai': return <Bot className="h-5 w-5" />
       case 'management': return <Settings className="h-5 w-5" />
+      case 'desktop': return <Wrench className="h-5 w-5" />
+      case 'filesystem': return <Search className="h-5 w-5" />
       default: return <Wrench className="h-5 w-5" />
     }
   }
@@ -220,6 +222,8 @@ export function MCPConnectionsPage() {
       case 'database': return 'bg-green-500'
       case 'ai': return 'bg-purple-500'
       case 'management': return 'bg-orange-500'
+      case 'desktop': return 'bg-cyan-500'
+      case 'filesystem': return 'bg-indigo-500'
       default: return 'bg-gray-500'
     }
   }
@@ -263,6 +267,8 @@ export function MCPConnectionsPage() {
             <SelectItem value="database">Database</SelectItem>
             <SelectItem value="ai">AI Assistant</SelectItem>
             <SelectItem value="management">Management</SelectItem>
+            <SelectItem value="desktop">Desktop</SelectItem>
+            <SelectItem value="filesystem">File System</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -11,7 +11,7 @@ import hashlib
 from typing import Dict, List, Optional, Any, Union
 
 from .crypto_utils import MCPCryptoUtils
-from mcp.core.utils.validation import MCPValidationError
+from ...core.utils.validation import MCPValidationError
 
 
 class MCPHashUtils:

@@ -41,16 +41,26 @@ from .network import (
     MCPBandwidthMonitor
 )
 
-from .security import (
+from .crypto import (
     MCPCryptoUtils,
     MCPHashUtils,
-    MCPJWTManager,
-    MCPPasswordUtils,
-    MCPCertificateManager,
-    MCPEncryptionManager,
+    MCPJWTUtils,
+    MCPCertificateUtils,
     MCPAccessControl,
-    MCPAuditLogger
+    MCPPermission,
+    MCPRole
 )
+
+# from .security import (
+#     MCPJWTUtils,
+#     MCPPasswordUtils,
+#     MCPCertificateManager,
+#     MCPEncryptionManager,
+#     MCPAuditLogger
+# )
+
+# Legacy alias
+MCPJWTManager = MCPJWTUtils
 
 __all__ = [
     # Common

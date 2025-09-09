@@ -19,7 +19,7 @@ try:
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
 
-from ..core import MCPValidationError
+from ...core.utils.validation import MCPValidationError
 
 
 class MCPCryptoUtils:

@@ -334,6 +334,9 @@ class DesktopToolsManager:
             except Exception as e:
                 logger.error(f"❌ Failed to register tool {tool_name}: {e}")
 
+        # Register additional tool sets
+        self.register_monitoring_tools()
+
     def get_tool(self, name: str) -> Optional[MCPTool]:
         """Get a tool by name."""
         return self.tools.get(name)
@@ -352,3 +355,30 @@ class DesktopToolsManager:
             }
             for tool in self.tools.values()
         ]
+
+    def register_web_scraping_tools(self):
+        """Register web scraping tools."""
+        try:
+            from .web_scraping_tools import WebScrapingTool, ContentAnalysisTool
+
+            self.tools["web_scraping"] = WebScrapingTool()
+            self.tools["content_analysis"] = ContentAnalysisTool()
+
+            logger.info("✅ Registered web scraping tools")
+        except Exception as e:
+            logger.error(f"❌ Failed to register web scraping tools: {e}")
+
+    def register_monitoring_tools(self):
+        """Register system monitoring tools."""
+        try:
+            from .monitoring_tools import MonitoringToolsManager
+
+            monitoring_manager = MonitoringToolsManager()
+            monitoring_manager.register_all_tools()
+
+            # Add monitoring tools to main tools dict
+            self.tools.update(monitoring_manager.get_all_tools())
+
+            logger.info("✅ Registered monitoring tools")
+        except Exception as e:
+            logger.error(f"❌ Failed to register monitoring tools: {e}")
