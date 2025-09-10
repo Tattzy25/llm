@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import {
   AudioWaveform,
   BookOpen,
   Bot,
   Command,
   Frame,
-  GalleryVerticalEnd,
   Map,
   PieChart,
   Settings2,
@@ -36,9 +36,17 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
+      name: "Digital Hustle Lab",
+      logo: () => (
+        <Image
+          src="/favicon.ico"
+          alt="Digital Hustle Lab Logo"
+          width={32}
+          height={32}
+          className="rounded-md"
+        />
+      ),
+      plan: "LLM Ecosystem",
     },
     {
       name: "Acme Corp.",
@@ -182,9 +190,19 @@ const data = {
   ],
   projects: [
     {
-      name: "Design Engineering",
+      name: "ENV/API KEYS",
       url: "#",
       icon: Frame,
+      items: [
+        {
+          title: "API Keys",
+          url: "#",
+        },
+        {
+          title: "Environment Variables",
+          url: "#",
+        },
+      ],
     },
     {
       name: "Sales & Marketing",
@@ -207,7 +225,7 @@ export function AppSidebar({ onViewChange, ...props }: React.ComponentProps<type
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onViewChange={onViewChange} />
-        <NavProjects projects={data.projects} />
+        <NavProjects projects={data.projects} onViewChange={onViewChange} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

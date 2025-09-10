@@ -17,9 +17,7 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
-  const [uploadedFiles, setUploadedFiles] = React.useState<File[]>([])
   const [isRecording, setIsRecording] = React.useState(false)
-  const [isDeepResearch, setIsDeepResearch] = React.useState(false)
 
   // Settings state
   const [selectedModel, setSelectedModel] = React.useState(modelOverride || process.env.NEXT_PUBLIC_DEFAULT_MODEL || "gpt-4")
@@ -88,36 +86,9 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
     }
   }
 
-  const handleFileUpload = (files: File[]) => {
-    setUploadedFiles(prev => [...prev, ...files])
-    showError(`Uploaded ${files.length} file(s)`, 'File Upload')
-  }
-
-  const handleImageUpload = (files: File[]) => {
-    setUploadedFiles(prev => [...prev, ...files])
-    showError(`Uploaded ${files.length} image(s)`, 'Image Upload')
-  }
-
   const handleVoiceRecording = () => {
     setIsRecording(!isRecording)
     showError(isRecording ? 'Voice recording stopped' : 'Voice recording started - speak now', 'Voice Input')
-  }
-
-  const handleDeepResearch = () => {
-    setIsDeepResearch(!isDeepResearch)
-    showError(isDeepResearch ? 'Deep research disabled' : 'Deep research enabled', 'Research Mode')
-  }
-
-  const handleCreateImage = () => {
-    showError('Image generation feature coming soon!', 'Image Generation')
-  }
-
-  const handleConnections = () => {
-    showError('Connections feature coming soon!', 'Connections')
-  }
-
-  const handleRemoveFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   return (
@@ -156,16 +127,10 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
         setInput={setInput}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
-        uploadedFiles={uploadedFiles}
-        onRemoveFile={handleRemoveFile}
         isRecording={isRecording}
-        isDeepResearch={isDeepResearch}
-        onFileUpload={handleFileUpload}
-        onImageUpload={handleImageUpload}
         onVoiceRecording={handleVoiceRecording}
-        onDeepResearch={handleDeepResearch}
-        onCreateImage={handleCreateImage}
-        onConnections={handleConnections}
+        selectedCharacter={selectedCharacter}
+        onCharacterSelect={setSelectedCharacter}
       />
     </div>
   )

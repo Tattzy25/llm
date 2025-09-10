@@ -23,15 +23,18 @@ import { MCPConnectionsPage } from "@/components/mcp-connections"
 import { MCPServerManager } from "@/components/mcp-server-manager"
 import { MCPTools } from "@/components/mcp-tools"
 import { MCPControlPanel } from "@/components/mcp-control-panel"
+import { ApiKeys } from "@/components/api-keys"
+import { EnvironmentVariables } from "@/components/environment-variables"
 import { useState } from "react"
+import Image from "next/image"
 
 export default function Page() {
-  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control">("dashboard")
+  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars">("dashboard")
   const [selectedCharacter, setSelectedCharacter] = useState("assistant")
   const [selectedModel, setSelectedModel] = useState("gpt-4")
 
   const handleViewChange = (view: string) => {
-    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control") {
+    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control" || view === "api-keys" || view === "env-vars") {
       setActiveView(view)
       console.log("🔄 Switching to view:", view)
     }
@@ -47,6 +50,13 @@ export default function Page() {
             <Separator
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
+            />
+            <Image
+              src="/favicon.ico"
+              alt="Digital Hustle Lab Logo"
+              width={32}
+              height={32}
+              className="rounded-md mr-2"
             />
             <Breadcrumb>
               <BreadcrumbList>
@@ -70,7 +80,9 @@ export default function Page() {
                      activeView === "mcp" ? "Manage Connections" :
                      activeView === "mcp-servers" ? "Configure Servers" :
                      activeView === "mcp-tools" ? "Available Tools" :
-                     activeView === "mcp-control" ? "System Control" : "Data Fetching"}
+                     activeView === "mcp-control" ? "System Control" :
+                     activeView === "api-keys" ? "API Keys" :
+                     activeView === "env-vars" ? "Environment Variables" : "Data Fetching"}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
@@ -108,6 +120,14 @@ export default function Page() {
         ) : activeView === "mcp-control" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             <MCPControlPanel />
+          </div>
+        ) : activeView === "api-keys" ? (
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <ApiKeys />
+          </div>
+        ) : activeView === "env-vars" ? (
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <EnvironmentVariables />
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

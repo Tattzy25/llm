@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { EnhancedErrorBoundary, GlobalErrorHandler } from "@/components/error-boundary";
 import { GlobalErrorToaster } from "@/components/global-error-toaster";
+import { NotificationProvider } from "@/components/notification-system";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,11 +42,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <EnhancedErrorBoundary>
-            {children}
-            <GlobalErrorHandler />
-            <GlobalErrorToaster />
-          </EnhancedErrorBoundary>
+          <NotificationProvider>
+            <EnhancedErrorBoundary>
+              {children}
+              <GlobalErrorHandler />
+              <GlobalErrorToaster />
+            </EnhancedErrorBoundary>
+          </NotificationProvider>
         </ThemeProvider>
       </body>
     </html>

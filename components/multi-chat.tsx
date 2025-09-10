@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, X, MessageSquare } from "lucide-react"
+import { Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,7 +54,7 @@ export function MultiChat({ selectedCharacter, selectedModel }: MultiChatProps) 
             Chat with multiple AI personalities simultaneously
           </p>
         </div>
-        <Button onClick={addChatWindow} disabled={chatWindows.length >= 4}>
+        <Button onClick={addChatWindow} disabled={chatWindows.length >= 6}>
           <Plus className="h-4 w-4 mr-2" />
           Add Chat
         </Button>
@@ -63,14 +63,15 @@ export function MultiChat({ selectedCharacter, selectedModel }: MultiChatProps) 
       <div className={`grid gap-4 ${
         chatWindows.length === 1 ? 'grid-cols-1' :
         chatWindows.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-        chatWindows.length === 3 ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
-        'grid-cols-1 lg:grid-cols-2 xl:grid-cols-4'
+        chatWindows.length === 3 ? 'grid-cols-1 lg:grid-cols-3' :
+        chatWindows.length === 4 ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-4' :
+        chatWindows.length === 5 ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+        'grid-cols-1 lg:grid-cols-3'
       }`}>
         {chatWindows.map((chatWindow) => (
           <Card key={chatWindow.id} className="flex flex-col h-[600px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium">
                 {chatWindow.title}
               </CardTitle>
               {chatWindows.length > 1 && (
@@ -96,13 +97,6 @@ export function MultiChat({ selectedCharacter, selectedModel }: MultiChatProps) 
           </Card>
         ))}
       </div>
-
-      {chatWindows.length === 1 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Click &quot;Add Chat&quot; to open multiple conversations simultaneously</p>
-        </div>
-      )}
     </div>
   )
 }
