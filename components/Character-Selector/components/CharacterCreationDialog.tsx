@@ -1,8 +1,7 @@
 import React from "react"
-import { Wand2, Sparkles, Zap, Brain, Target, Check, Plus, X } from "lucide-react"
+import { Wand2, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CharacterCreationTabs } from "./CharacterCreationTabs"
 import type { CharacterFormData, CustomModelFormData } from "../types"
 

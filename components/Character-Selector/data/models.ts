@@ -1,4 +1,4 @@
-import { Zap, Bot, Cpu, MessageSquare, Code, Palette, BarChart3, FileText, Mic, Eye, Search, Brain, Heart, Lightbulb, Target, Users, Sparkles, Trophy, Shield, Star } from "lucide-react"
+import { Zap, Bot, Cpu, MessageSquare, Code, Palette, BarChart3, FileText, Mic, Eye, Search, Brain, Heart, Lightbulb, Target, Users } from "lucide-react"
 import type { ModelCategory, FeatureDefinition, AvailableModel } from "../types"
 
 // Model categories for organization

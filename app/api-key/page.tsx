@@ -85,9 +85,17 @@ export default function APIKeyPage() {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [isValidating, setIsValidating] = useState<Record<string, boolean>>({})
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure component is mounted before accessing localStorage
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load saved API keys on mount
   useEffect(() => {
+    if (!mounted) return
+    
     const savedKeys = localStorage.getItem('api-keys')
     if (savedKeys) {
       try {
@@ -97,7 +105,7 @@ export default function APIKeyPage() {
         console.error('Failed to parse saved API keys:', error)
       }
     }
-  }, [])
+  }, [mounted])
 
   const handleKeyChange = (provider: string, key: string) => {
     setApiKeys(prev => ({
@@ -146,6 +154,8 @@ export default function APIKeyPage() {
   }
 
   const saveKeys = () => {
+    if (!mounted) return
+    
     setSaveStatus('saving')
     try {
       localStorage.setItem('api-keys', JSON.stringify(apiKeys))
@@ -160,6 +170,44 @@ export default function APIKeyPage() {
 
   const toggleKeyVisibility = (provider: string) => {
     setShowKeys(prev => ({ ...prev, [provider]: !prev[provider] }))
+  }
+
+  // Show loading state during initial mount to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-[orientation=vertical]:h-4"
+              />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink href="/dashboard">
+                      Dashboard
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>API Keys</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
   }
 
   return (

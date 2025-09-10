@@ -10,22 +10,15 @@ import {
   CharacterEditDialog
 } from "./Character-Selector/components"
 import {
-  personalityArchetypes,
-  personalityTraits,
-  modelCategories,
-  featureCategories
+  personalityArchetypes
 } from "./Character-Selector/data"
 import {
-  generateSystemPrompt,
-  selectArchetype,
-  updatePersonalityTrait
+  generateSystemPrompt
 } from "./Character-Selector/utils/character-utils"
 
 // Import types
 import type {
-  Character,
-  CharacterCapabilities,
-  ModelSettings
+  Character
 } from "./Character-Selector/types"
 
 // Import hooks
@@ -39,8 +32,6 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 import { Wand2, Shield, User } from "lucide-react"
 
 // Import data and utilities
-import { defaultCharacters } from "./Character-Selector/data/characters"
-import { iconOptions } from "./Character-Selector/data/options"
 import { MODEL_CONFIGS } from "@/lib/chat-service"
 
 interface CharacterSelectorProps {
@@ -62,24 +53,17 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     error,
     createCharacter,
     updateCharacter,
-    deleteCharacter,
-    getCharacterById
+    deleteCharacter
   } = characterManagement
 
   const {
     formData: characterForm,
     updateField: setCharacterForm,
-    reset: resetForm,
-    errors: formErrors,
-    isDirty
+    reset: resetForm
   } = formManagement
 
   const {
-    customModels,
-    addCustomModel,
-    removeCustomModel,
-    getModelCategories,
-    loading: modelsLoading
+    customModels
   } = modelManagement
 
   // Local state for UI
@@ -218,16 +202,16 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
               onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
-              onToggleModelSelection={(modelId) => {
+              onToggleModelSelection={(_modelId) => {
                 // Implementation needed
               }}
-              onUpdateModelSetting={(modelId, setting, value) => {
+              onUpdateModelSetting={(_modelId, _setting, _value) => {
                 // Implementation needed
               }}
-              onToggleFeature={(featureId) => {
+              onToggleFeature={(_featureId) => {
                 // Implementation needed
               }}
-              getModelCategory={(modelId) => 'custom'}
+              getModelCategory={(_modelId) => 'custom'}
               getRecommendedModels={() => []}
               onAddCustomModel={() => {
                 // This should be handled by the dialog's internal logic

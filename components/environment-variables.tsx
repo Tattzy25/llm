@@ -205,7 +205,7 @@ export function EnvironmentVariables() {
     try {
       await navigator.clipboard.writeText(text)
       showSuccess(`${type} copied to clipboard`, 'Ready to paste')
-    } catch (error) {
+    } catch {
       showError('Failed to copy to clipboard', 'Please try again')
     }
   }
@@ -300,7 +300,7 @@ export function EnvironmentVariables() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {pendingVars.map((pending, index) => (
+          {pendingVars.map((pending) => (
             <div key={pending.id} className="flex items-end gap-2 p-4 border rounded-lg">
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

@@ -1,4 +1,4 @@
-import { User, BookOpen, Code, Palette, Wrench, Settings, Shield, Bot, Cpu, Zap, Globe, Check, Sparkles, Brain, Heart, Target, Users, Crown, Star, Flame, Eye, Wand2, Microscope, Briefcase, Lightbulb } from "lucide-react"
+import { User, BookOpen, Code, Palette, Wrench, Settings } from "lucide-react"
 
 export const iconOptions = [
   { name: "User", component: User, value: "User" },
