@@ -41,7 +41,7 @@ import { Wand2, Shield } from "lucide-react"
 // Import data and utilities
 import { defaultCharacters } from "./Character-Selector/data/characters"
 import { iconOptions } from "./Character-Selector/data/options"
-import { MODEL_CONFIGS } from "./Character-Selector/data/models"
+import { MODEL_CONFIGS } from "@/lib/chat-service"
 
 interface CharacterSelectorProps {
   selectedCharacter: string
@@ -69,7 +69,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
   const {
     formData: characterForm,
     updateField: setCharacterForm,
-    resetForm,
+    reset: resetForm,
     errors: formErrors,
     isDirty
   } = formManagement
@@ -105,9 +105,47 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     setEditingCharacter(character)
     // Load character data into form
     Object.entries(character).forEach(([key, value]) => {
-      setCharacterForm(key as any, value)
+      setCharacterForm(key as keyof typeof characterForm, value)
     })
     setIsEditDialogOpen(true)
+  }
+
+  const handleSelectArchetype = (archetypeId: string) => {
+    const archetype = personalityArchetypes.find(a => a.id === archetypeId)
+    if (archetype) {
+      setCharacterForm('archetype', archetypeId)
+      setCharacterForm('personality', { ...archetype.traits })
+      setCharacterForm('systemPrompt', archetype.examplePrompt)
+    }
+  }
+
+  const handleUpdatePersonalityTrait = (traitId: string, value: number) => {
+    setCharacterForm('personality', { ...characterForm.personality, [traitId]: value })
+  }
+
+  const handleGenerateSystemPrompt = () => {
+    // Simple system prompt generation based on character form
+    const archetype = personalityArchetypes.find(a => a.id === characterForm.archetype)
+    let prompt = archetype?.examplePrompt || "You are a helpful AI assistant."
+    
+    // Add personality-based modifications
+    const traits = characterForm.personality
+    if (traits.creativity > 70) {
+      prompt += " Be creative and innovative in your responses."
+    }
+    if (traits.empathy > 70) {
+      prompt += " Show deep empathy and understanding in your interactions."
+    }
+    if (traits.humor > 70) {
+      prompt += " Incorporate appropriate humor and wit into your responses."
+    }
+    if (traits.formality > 70) {
+      prompt += " Maintain a formal and professional tone."
+    } else if (traits.formality < 30) {
+      prompt += " Use a casual and conversational tone."
+    }
+    
+    setCharacterForm('systemPrompt', prompt)
   }
 
   const handleUpdateCharacter = () => {
@@ -173,9 +211,9 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               characterForm={characterForm}
               setCharacterForm={setCharacterForm}
               onCreateCharacter={handleCreateCustomCharacter}
-              onSelectArchetype={selectArchetype}
-              onUpdatePersonalityTrait={updatePersonalityTrait}
-              onGenerateSystemPrompt={generateSystemPrompt}
+              onSelectArchetype={handleSelectArchetype}
+              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
+              onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
               toggleModelSelection={(modelId) => {
                 // Implementation needed
@@ -202,9 +240,9 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               characterForm={characterForm}
               setCharacterForm={setCharacterForm}
               onUpdateCharacter={handleUpdateCharacter}
-              onSelectArchetype={selectArchetype}
-              onUpdatePersonalityTrait={updatePersonalityTrait}
-              onGenerateSystemPrompt={generateSystemPrompt}
+              onSelectArchetype={handleSelectArchetype}
+              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
+              onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
               toggleModelSelection={(modelId) => {
                 // Implementation needed

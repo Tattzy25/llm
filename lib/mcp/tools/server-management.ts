@@ -5,25 +5,26 @@ import { withMCPErrorHandling, MCPServerUnavailableError } from "../utils/error-
 import { getMCPConfig } from "../config"
 
 // Tiny JSON-RPC over WebSocket helper (Node-only) used inside API route execution
-async function wsRpc<T = any>(wsBase: string, serverName: string, method: string, params?: any): Promise<T> {
-	// Only construct in Node (Next.js API route). Avoid bundling in the browser.
-	// eslint-disable-next-line @typescript-eslint/no-var-requires
-	const WSMod = require('ws') as typeof import('ws')
-	// Minimal constructor/interface to satisfy TS without relying on @types/ws construct signatures
-	type WSLikeInstance = {
-		on: (event: 'open' | 'message' | 'error' | 'close', cb: (...args: any[]) => void) => void
-		send: (data: any) => void
-		close: () => void
+// Tiny JSON-RPC over WebSocket helper (Node-only) used inside API route execution
+async function wsRpc<T = unknown>(wsBase: string, serverName: string, method: string, params?: Record<string, unknown>): Promise<T> {
+	// Type definitions for WebSocket functionality
+	interface WSInstance {
+		on: (event: 'open' | 'message' | 'error' | 'close', cb: (...args: unknown[]) => void) => void;
+		send: (data: string) => void;
+		close: () => void;
 	}
-	type WSLikeCtor = new (address: string, protocols?: string | string[], options?: any) => WSLikeInstance
-	const WSConstructor = ((WSMod as any).WebSocket || (WSMod as any).default || (WSMod as any)) as unknown as WSLikeCtor
+	type WSConstructor = new (address: string, protocols?: string | string[], options?: Record<string, unknown>) => WSInstance;
+	// Only construct in Node (Next.js API route). Avoid bundling in the browser.
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const WSMod = require('ws') as { WebSocket?: WSConstructor; default?: WSConstructor } & WSConstructor;
+	const WSConstructor = (WSMod.WebSocket || WSMod.default || WSMod) as unknown as WSConstructor
 
 	const url = `${wsBase.replace(/\/$/, '')}/ws/${encodeURIComponent(serverName)}`
 	return await new Promise<T>((resolve, reject) => {
 		const ws = new WSConstructor(url)
 		const id = Math.floor(Math.random() * 1e9)
 		const payload = { jsonrpc: '2.0', id, method, params }
-		const timer = setTimeout(() => { try { ws.close() } catch {} ; reject(new Error('WS RPC timeout')) }, 20000)
+		const timer = setTimeout(() => { try { ws.close() } catch { /* ignore close errors */ } ; reject(new Error('WS RPC timeout')) }, 20000)
 		ws.on('open', () => { ws.send(JSON.stringify(payload)) })
 		ws.on('message', (data: Buffer) => {
 			try {
@@ -31,9 +32,12 @@ async function wsRpc<T = any>(wsBase: string, serverName: string, method: string
 				if (msg && msg.id === id) {
 					clearTimeout(timer)
 					;('error' in msg ? reject(new Error(msg.error?.message || 'WS RPC error')) : resolve(msg.result as T))
-					try { ws.close() } catch {}
+					try { ws.close() } catch { /* ignore close errors */ }
 				}
-			} catch (e) { /* ignore non-JSON */ }
+			} catch (e) { 
+				/* ignore non-JSON parse errors */ 
+				console.warn('WS RPC parse error:', e)
+			}
 		})
 		ws.on('error', (err: Error) => { clearTimeout(timer); reject(err) })
 		ws.on('close', () => { /* noop */ })
@@ -89,7 +93,7 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
 			const res = await fetch(`${SERVER_MANAGER.httpUrl.replace(/\/$/, '')}/servers`)
 			const json = await res.json()
 			if (args?.server_name) {
-				const match = (json?.servers || []).find((s: any) => s?.config?.name?.toLowerCase().includes(String(args.server_name).toLowerCase()) || s?.config?.module?.includes(String(args.server_name)))
+				const match = (json?.servers || []).find((s: { config?: { name?: string; module?: string } }) => s?.config?.name?.toLowerCase().includes(String(args.server_name).toLowerCase()) || s?.config?.module?.includes(String(args.server_name)))
 				return match || { status: 'unknown', name: args.server_name }
 			}
 			return json
@@ -107,7 +111,7 @@ export const SERVER_MANAGEMENT_TOOLS: MCPTool[] = [
 			const { SERVER_MANAGER } = getMCPConfig()
 			if (!SERVER_MANAGER.endpoint) throw new MCPServerUnavailableError('SERVER_MANAGER')
 			const serverName = String(args?.server_name || 'desktop')
-			const result = await wsRpc<{ tools: any[] }>(SERVER_MANAGER.endpoint, serverName, 'tools/list')
+			const result = await wsRpc<{ tools: Array<{ name: string; description: string; parameters?: Record<string, unknown> }> }>(SERVER_MANAGER.endpoint, serverName, 'tools/list')
 			return result
 		}, 'list_mcp_tools')
 	},

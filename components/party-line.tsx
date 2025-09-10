@@ -37,8 +37,8 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
       if (!envKey) {
         const storedEnvVars = localStorage.getItem(`env-vars-${getCurrentUserId()}`)
         if (storedEnvVars) {
-          const envVars = JSON.parse(storedEnvVars)
-          const openaiKey = envVars.find((v: any) => v.key === 'OPENAI_API_KEY')
+          const envVars = JSON.parse(storedEnvVars) as Array<{ key: string; value: string }>
+          const openaiKey = envVars.find((v) => v.key === 'OPENAI_API_KEY')
           if (openaiKey && openaiKey.value && !openaiKey.value.startsWith('your_')) {
             setApiKey(openaiKey.value)
             return

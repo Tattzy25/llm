@@ -1,6 +1,21 @@
 // Tiny JSON-RPC client over native WebSocket (browser). No Socket.IO required.
 
-type Pending = { resolve: (v: any) => void; reject: (e: any) => void }
+// Type definitions for WebSocket RPC
+interface RPCRequest {
+	jsonrpc: string;
+	id: number;
+	method: string;
+	params?: Record<string, unknown>;
+}
+
+interface RPCResponse {
+	jsonrpc: string;
+	id: number;
+	result?: unknown;
+	error?: { code: number; message: string; data?: unknown };
+}
+
+type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void }
 
 export class WebSocketHandler {
 	private ws: WebSocket | null = null
@@ -13,7 +28,7 @@ export class WebSocketHandler {
 			const proto = token ? [`mcp.bearer.${token}`] : undefined
 			this.ws = new WebSocket(url, proto)
 			this.ws.onopen = () => resolve()
-			this.ws.onerror = ev => reject(new Error(`WebSocket error: ${String((ev as any).message || ev)}`))
+			this.ws.onerror = ev => reject(new Error(`WebSocket error: ${String((ev as ErrorEvent).message || ev)}`))
 			this.ws.onmessage = evt => this.onMessage(evt)
 			this.ws.onclose = () => this.flushAll(new Error('WebSocket closed'))
 		})
@@ -24,21 +39,21 @@ export class WebSocketHandler {
 
 	send(payload: unknown) { if (this.isOpen()) this.ws!.send(JSON.stringify(payload)) }
 
-	request(method: string, params?: unknown): Promise<any> {
+	request(method: string, params?: unknown): Promise<unknown> {
 		const id = this.nextId++
-		const p = new Promise<any>((resolve, reject) => this.inflight.set(id, { resolve, reject }))
+		const p = new Promise<unknown>((resolve, reject) => this.inflight.set(id, { resolve, reject }))
 		this.send({ jsonrpc: '2.0', id, method, params })
 		return p
 	}
 
 	private onMessage(evt: MessageEvent) {
 		try {
-			const msg = JSON.parse(String(evt.data))
+			const msg = JSON.parse(String(evt.data)) as RPCResponse
 			if (msg && typeof msg === 'object' && 'id' in msg) {
 				const pending = this.inflight.get(msg.id)
 				if (pending) {
 					this.inflight.delete(msg.id)
-					return 'error' in msg ? pending.reject(msg.error) : pending.resolve(msg.result)
+					return 'error' in msg ? pending.reject(new Error(msg.error?.message || 'RPC Error')) : pending.resolve(msg.result)
 				}
 			}
 			// Ignore or handle notifications here if needed

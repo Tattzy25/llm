@@ -3,6 +3,18 @@
 import * as React from 'react'
 import { getMCPManager } from '@/lib/mcp/manager'
 
+// Type definitions for MCP server data
+interface MCPServerStatus {
+	active: boolean;
+	healthy: boolean;
+	tools: number;
+}
+
+interface MCPSystemData {
+	totalServers: number;
+	servers: Record<string, MCPServerStatus>;
+}
+
 export default function HostingPanel() {
   const [loading, setLoading] = React.useState(false)
   const [summary, setSummary] = React.useState<{ total?: number; healthy?: number; unhealthy?: number; unknown?: number } | null>(null)
@@ -12,9 +24,19 @@ export default function HostingPanel() {
     try {
       const res = await getMCPManager().getSystemHealth()
       if (res.success && res.data) {
-        const d: any = res.data
-        setSummary({ total: d.totalServers, healthy: Object.values(d.servers || {}).filter((s: any) => s.healthy).length, unhealthy: Object.values(d.servers || {}).filter((s: any) => !s.healthy && s.active).length, unknown: Object.values(d.servers || {}).filter((s: any) => !s.active).length })
-        const list = Object.entries(d.servers || {}).map(([id, s]: any) => ({ id, active: !!s.active, healthy: !!s.healthy, tools: Number(s.tools || 0) }))
+        const d = res.data as MCPSystemData
+        setSummary({ 
+          total: d.totalServers, 
+          healthy: Object.values(d.servers || {}).filter((s) => s.healthy).length, 
+          unhealthy: Object.values(d.servers || {}).filter((s) => !s.healthy && s.active).length, 
+          unknown: Object.values(d.servers || {}).filter((s) => !s.active).length 
+        })
+        const list = Object.entries(d.servers || {}).map(([id, s]) => ({ 
+          id, 
+          active: !!s.active, 
+          healthy: !!s.healthy, 
+          tools: Number(s.tools || 0) 
+        }))
         setServers(list)
       }
     } finally { setLoading(false) }
