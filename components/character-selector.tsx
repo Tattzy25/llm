@@ -208,60 +208,44 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               </Button>
             </DialogTrigger>
             <CharacterCreationDialog
+              isOpen={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
               characterForm={characterForm}
-              setCharacterForm={setCharacterForm}
+              customModelForm={{ name: '', provider: '', endpoint: '', maxTokens: 2048 }}
+              showCustomModelForm={false}
               onCreateCharacter={handleCreateCustomCharacter}
+              onOpenCreateDialog={() => setIsCreateDialogOpen(true)}
               onSelectArchetype={handleSelectArchetype}
               onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
               onGenerateSystemPrompt={handleGenerateSystemPrompt}
+              onToggleModelSelection={(modelId) => {
+                // Implementation needed
+              }}
+              onUpdateModelSetting={(modelId, setting, value) => {
+                // Implementation needed
+              }}
+              onToggleFeature={(featureId) => {
+                // Implementation needed
+              }}
+              onAddCustomModel={() => {}}
+              onSetShowCustomModelForm={() => {}}
+              onUpdateCustomModelForm={() => {}}
+              onUpdateCharacterForm={setCharacterForm}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
-              toggleModelSelection={(modelId) => {
-                // Implementation needed
-              }}
-              updateModelSetting={(modelId, setting, value) => {
-                // Implementation needed
-              }}
-              toggleFeature={(featureId) => {
-                // Implementation needed
-              }}
-              getRecommendedModels={() => []}
-              addCustomModel={addCustomModel}
-              customModelForm={{ name: '', provider: '', endpoint: '', maxTokens: 2048 }}
-              setCustomModelForm={() => {}}
-              showCustomModelForm={false}
-              setShowCustomModelForm={() => {}}
+              getModelCategory={() => ''}
               getSelectedModelsInfo={() => []}
+              getRecommendedModels={() => []}
             />
           </Dialog>
 
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          {editingCharacter && (
             <CharacterEditDialog
-              editingCharacter={editingCharacter}
-              characterForm={characterForm}
-              setCharacterForm={setCharacterForm}
-              onUpdateCharacter={handleUpdateCharacter}
-              onSelectArchetype={handleSelectArchetype}
-              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
-              onGenerateSystemPrompt={handleGenerateSystemPrompt}
-              getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
-              toggleModelSelection={(modelId) => {
-                // Implementation needed
-              }}
-              updateModelSetting={(modelId, setting, value) => {
-                // Implementation needed
-              }}
-              toggleFeature={(featureId) => {
-                // Implementation needed
-              }}
-              getRecommendedModels={() => []}
-              addCustomModel={addCustomModel}
-              customModelForm={{ name: '', provider: '', endpoint: '', maxTokens: 2048 }}
-              setCustomModelForm={() => {}}
-              showCustomModelForm={false}
-              setShowCustomModelForm={() => {}}
-              getSelectedModelsInfo={() => []}
+              character={editingCharacter}
+              isOpen={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+              onSave={handleUpdateCharacter}
             />
-          </Dialog>
+          )}
         </div>
       </div>
 

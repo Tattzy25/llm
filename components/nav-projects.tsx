@@ -77,6 +77,8 @@ export function NavProjects({
                                   onViewChange("api-keys")
                                 } else if (subItem.title === "Environment Variables") {
                                   onViewChange("env-vars")
+                                } else if (subItem.title === "Robots") {
+                                  onViewChange("control-panel-robots")
                                 }
                               }
                             }}

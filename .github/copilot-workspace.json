@@ -1,0 +1,69 @@
+{
+  "name": "LLM Chat Interface Development",
+  "description": "Next.js application with AI chat interface and MCP server integration",
+  "tools": [
+    {
+      "name": "terminal",
+      "config": {
+        "shell": "pwsh",
+        "defaultDirectory": "c:\\Users\\relay\\Downloads\\llm\\llm"
+      }
+    },
+    {
+      "name": "package-manager", 
+      "config": {
+        "manager": "pnpm",
+        "commands": {
+          "install": "pnpm install",
+          "build": "pnpm build",
+          "dev": "pnpm dev",
+          "test": "pnpm test",
+          "lint": "pnpm lint"
+        }
+      }
+    }
+  ],
+  "environment": {
+    "NODE_ENV": "development",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "tasks": [
+    {
+      "id": "fix-build-errors",
+      "name": "Fix Critical Build Errors",
+      "priority": "high",
+      "description": "Resolve TypeScript and ESLint errors preventing compilation",
+      "files": [
+        "components/character-selector.tsx",
+        "components/environment-variables.tsx", 
+        "lib/mcp/**/*.ts",
+        "components/mcp-connections/HostingPanel.tsx"
+      ]
+    },
+    {
+      "id": "create-env-template",
+      "name": "Create Environment Template",
+      "priority": "high", 
+      "description": "Create .env.example with all required environment variables",
+      "files": [".env.example", "README.md"]
+    },
+    {
+      "id": "implement-auth-bypass",
+      "name": "Implement Authentication Bypass",
+      "priority": "medium",
+      "description": "Create development mode authentication bypass",
+      "files": [
+        "app/api/auth/login/route.ts",
+        "app/api/auth/register/route.ts",
+        "app/api/auth/social/*/route.ts"
+      ]
+    }
+  ],
+  "constraints": [
+    "Use pnpm as package manager",
+    "Maintain Next.js App Router structure", 
+    "Keep TypeScript strict mode enabled",
+    "Preserve existing component functionality",
+    "Follow shadcn/ui component patterns"
+  ]
+}

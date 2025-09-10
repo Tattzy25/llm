@@ -210,9 +210,15 @@ const data = {
       icon: PieChart,
     },
     {
-      name: "Travel",
+      name: "Control Panel",
       url: "#",
       icon: Map,
+      items: [
+        {
+          title: "Robots",
+          url: "#",
+        },
+      ],
     },
   ],
 }

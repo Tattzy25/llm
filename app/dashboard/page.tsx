@@ -25,16 +25,17 @@ import { MCPTools } from "@/components/mcp-tools"
 import { MCPControlPanel } from "@/components/mcp-control-panel"
 import { ApiKeys } from "@/components/api-keys"
 import { EnvironmentVariables } from "@/components/environment-variables"
+import { ControlPanelRobots } from "@/components/control-panel-robots"
 import { useState } from "react"
 import Image from "next/image"
 
 export default function Page() {
-  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars">("dashboard")
+  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars" | "control-panel-robots">("dashboard")
   const [selectedCharacter, setSelectedCharacter] = useState("assistant")
   const [selectedModel, setSelectedModel] = useState("gpt-4")
 
   const handleViewChange = (view: string) => {
-    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control" || view === "api-keys" || view === "env-vars") {
+    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control" || view === "api-keys" || view === "env-vars" || view === "control-panel-robots") {
       setActiveView(view)
       console.log("🔄 Switching to view:", view)
     }
@@ -68,7 +69,8 @@ export default function Page() {
                      activeView === "mcp" ? "MCP Connections" :
                      activeView === "mcp-servers" ? "MCP Servers" :
                      activeView === "mcp-tools" ? "MCP Tools" :
-                     activeView === "mcp-control" ? "MCP Control Panel" : "Building Your Application"}
+                     activeView === "mcp-control" ? "MCP Control Panel" :
+                     activeView === "control-panel-robots" ? "Control Panel" : "Building Your Application"}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
@@ -82,7 +84,8 @@ export default function Page() {
                      activeView === "mcp-tools" ? "Available Tools" :
                      activeView === "mcp-control" ? "System Control" :
                      activeView === "api-keys" ? "API Keys" :
-                     activeView === "env-vars" ? "Environment Variables" : "Data Fetching"}
+                     activeView === "env-vars" ? "Environment Variables" :
+                     activeView === "control-panel-robots" ? "Robots Management" : "Data Fetching"}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
@@ -128,6 +131,10 @@ export default function Page() {
         ) : activeView === "env-vars" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             <EnvironmentVariables />
+          </div>
+        ) : activeView === "control-panel-robots" ? (
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <ControlPanelRobots />
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
