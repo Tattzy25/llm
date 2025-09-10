@@ -36,7 +36,7 @@ import { useModelManagement } from "./Character-Selector/hooks/use-model-managem
 // Import UI components
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger } from "@/components/ui/dialog"
-import { Wand2, Shield } from "lucide-react"
+import { Wand2, Shield, User } from "lucide-react"
 
 // Import data and utilities
 import { defaultCharacters } from "./Character-Selector/data/characters"
@@ -208,58 +208,53 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               </Button>
             </DialogTrigger>
             <CharacterCreationDialog
+              isOpen={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
               characterForm={characterForm}
-              setCharacterForm={setCharacterForm}
+              onUpdateCharacterForm={setCharacterForm}
               onCreateCharacter={handleCreateCustomCharacter}
+              onOpenCreateDialog={() => setIsCreateDialogOpen(true)}
               onSelectArchetype={handleSelectArchetype}
               onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
               onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
-              toggleModelSelection={(modelId) => {
+              onToggleModelSelection={(modelId) => {
                 // Implementation needed
               }}
-              updateModelSetting={(modelId, setting, value) => {
+              onUpdateModelSetting={(modelId, setting, value) => {
                 // Implementation needed
               }}
-              toggleFeature={(featureId) => {
+              onToggleFeature={(featureId) => {
                 // Implementation needed
               }}
+              getModelCategory={(modelId) => 'custom'}
               getRecommendedModels={() => []}
-              addCustomModel={addCustomModel}
+              onAddCustomModel={() => {
+                // This should be handled by the dialog's internal logic
+                // addCustomModel would be called with proper parameters from within the dialog
+              }}
               customModelForm={{ name: '', provider: '', endpoint: '', maxTokens: 2048 }}
-              setCustomModelForm={() => {}}
+              onUpdateCustomModelForm={() => {}}
               showCustomModelForm={false}
-              setShowCustomModelForm={() => {}}
+              onSetShowCustomModelForm={() => {}}
               getSelectedModelsInfo={() => []}
             />
           </Dialog>
 
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <CharacterEditDialog
-              editingCharacter={editingCharacter}
-              characterForm={characterForm}
-              setCharacterForm={setCharacterForm}
-              onUpdateCharacter={handleUpdateCharacter}
-              onSelectArchetype={handleSelectArchetype}
-              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
-              onGenerateSystemPrompt={handleGenerateSystemPrompt}
-              getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
-              toggleModelSelection={(modelId) => {
-                // Implementation needed
+              character={editingCharacter || { 
+                id: '', 
+                name: '', 
+                description: '', 
+                systemPrompt: '', 
+                icon: User, 
+                color: 'bg-gray-500', 
+                isCustom: false 
               }}
-              updateModelSetting={(modelId, setting, value) => {
-                // Implementation needed
-              }}
-              toggleFeature={(featureId) => {
-                // Implementation needed
-              }}
-              getRecommendedModels={() => []}
-              addCustomModel={addCustomModel}
-              customModelForm={{ name: '', provider: '', endpoint: '', maxTokens: 2048 }}
-              setCustomModelForm={() => {}}
-              showCustomModelForm={false}
-              setShowCustomModelForm={() => {}}
-              getSelectedModelsInfo={() => []}
+              isOpen={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+              onSave={handleUpdateCharacter}
             />
           </Dialog>
         </div>

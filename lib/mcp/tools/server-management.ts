@@ -26,12 +26,16 @@ async function wsRpc<T = unknown>(wsBase: string, serverName: string, method: st
 		const payload = { jsonrpc: '2.0', id, method, params }
 		const timer = setTimeout(() => { try { ws.close() } catch { /* ignore close errors */ } ; reject(new Error('WS RPC timeout')) }, 20000)
 		ws.on('open', () => { ws.send(JSON.stringify(payload)) })
-		ws.on('message', (data: Buffer) => {
+		ws.on('message', (data: unknown) => {
 			try {
-				const msg = JSON.parse((data as unknown as Buffer).toString())
+				const msg = JSON.parse((data as Buffer).toString())
 				if (msg && msg.id === id) {
 					clearTimeout(timer)
-					;('error' in msg ? reject(new Error(msg.error?.message || 'WS RPC error')) : resolve(msg.result as T))
+					if ('error' in msg) {
+						reject(new Error(msg.error?.message || 'WS RPC error'))
+					} else {
+						resolve(msg.result as T)
+					}
 					try { ws.close() } catch { /* ignore close errors */ }
 				}
 			} catch (e) { 
@@ -39,7 +43,7 @@ async function wsRpc<T = unknown>(wsBase: string, serverName: string, method: st
 				console.warn('WS RPC parse error:', e)
 			}
 		})
-		ws.on('error', (err: Error) => { clearTimeout(timer); reject(err) })
+		ws.on('error', (err: unknown) => { clearTimeout(timer); reject(err instanceof Error ? err : new Error(String(err))) })
 		ws.on('close', () => { /* noop */ })
 	})
 }
