@@ -69,7 +69,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
   const {
     formData: characterForm,
     updateField: setCharacterForm,
-    resetForm,
+    reset: resetForm,
     errors: formErrors,
     isDirty
   } = formManagement
@@ -108,6 +108,44 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
       setCharacterForm(key as keyof typeof characterForm, value)
     })
     setIsEditDialogOpen(true)
+  }
+
+  const handleSelectArchetype = (archetypeId: string) => {
+    const archetype = personalityArchetypes.find(a => a.id === archetypeId)
+    if (archetype) {
+      setCharacterForm('archetype', archetypeId)
+      setCharacterForm('personality', { ...archetype.traits })
+      setCharacterForm('systemPrompt', archetype.examplePrompt)
+    }
+  }
+
+  const handleUpdatePersonalityTrait = (traitId: string, value: number) => {
+    setCharacterForm('personality', { ...characterForm.personality, [traitId]: value })
+  }
+
+  const handleGenerateSystemPrompt = () => {
+    // Simple system prompt generation based on character form
+    const archetype = personalityArchetypes.find(a => a.id === characterForm.archetype)
+    let prompt = archetype?.examplePrompt || "You are a helpful AI assistant."
+    
+    // Add personality-based modifications
+    const traits = characterForm.personality
+    if (traits.creativity > 70) {
+      prompt += " Be creative and innovative in your responses."
+    }
+    if (traits.empathy > 70) {
+      prompt += " Show deep empathy and understanding in your interactions."
+    }
+    if (traits.humor > 70) {
+      prompt += " Incorporate appropriate humor and wit into your responses."
+    }
+    if (traits.formality > 70) {
+      prompt += " Maintain a formal and professional tone."
+    } else if (traits.formality < 30) {
+      prompt += " Use a casual and conversational tone."
+    }
+    
+    setCharacterForm('systemPrompt', prompt)
   }
 
   const handleUpdateCharacter = () => {
@@ -173,9 +211,9 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               characterForm={characterForm}
               setCharacterForm={setCharacterForm}
               onCreateCharacter={handleCreateCustomCharacter}
-              onSelectArchetype={selectArchetype}
-              onUpdatePersonalityTrait={updatePersonalityTrait}
-              onGenerateSystemPrompt={generateSystemPrompt}
+              onSelectArchetype={handleSelectArchetype}
+              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
+              onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
               toggleModelSelection={(modelId) => {
                 // Implementation needed
@@ -202,9 +240,9 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
               characterForm={characterForm}
               setCharacterForm={setCharacterForm}
               onUpdateCharacter={handleUpdateCharacter}
-              onSelectArchetype={selectArchetype}
-              onUpdatePersonalityTrait={updatePersonalityTrait}
-              onGenerateSystemPrompt={generateSystemPrompt}
+              onSelectArchetype={handleSelectArchetype}
+              onUpdatePersonalityTrait={handleUpdatePersonalityTrait}
+              onGenerateSystemPrompt={handleGenerateSystemPrompt}
               getAllAvailableModels={() => ({ ...MODEL_CONFIGS, ...customModels })}
               toggleModelSelection={(modelId) => {
                 // Implementation needed
