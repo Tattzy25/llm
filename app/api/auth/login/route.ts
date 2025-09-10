@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
 			user: {
 				id: 'demo-user',
 				email: email,
+```ALL THIS IS READY I HAVE ALL INFO FOR EMAILS AND EVERYTHING ITS HI@DIGITALHUSTLELAB.COM i have all smpt or whatever we need . so please make sure it is all production ready code you impliment not these mockups, simulations , demos or placeholders, , ( im NOT talking about image placeholders or input field placeholders )
 				name: 'Demo User'
 			}
 		}, { status: 200 })
