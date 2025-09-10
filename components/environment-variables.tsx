@@ -296,7 +296,7 @@ export function EnvironmentVariables() {
         <CardHeader>
           <CardTitle>Add Environment Variables</CardTitle>
           <CardDescription>
-            Add multiple key-value pairs. Click "Add Row" to add more input fields.
+            Add multiple key-value pairs. Click &quot;Add Row&quot; to add more input fields.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -471,7 +471,7 @@ export function EnvironmentVariables() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Environment Variable</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{envVar.key}"? This action cannot be undone.
+                              Are you sure you want to delete &quot;{envVar.key}&quot;? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

@@ -41,7 +41,7 @@ import { Wand2, Shield } from "lucide-react"
 // Import data and utilities
 import { defaultCharacters } from "./Character-Selector/data/characters"
 import { iconOptions } from "./Character-Selector/data/options"
-import { MODEL_CONFIGS } from "./Character-Selector/data/models"
+import { MODEL_CONFIGS } from "@/lib/chat-service"
 
 interface CharacterSelectorProps {
   selectedCharacter: string
@@ -105,7 +105,7 @@ export function CharacterSelector({ selectedCharacter, onCharacterSelect }: Char
     setEditingCharacter(character)
     // Load character data into form
     Object.entries(character).forEach(([key, value]) => {
-      setCharacterForm(key as any, value)
+      setCharacterForm(key as keyof typeof characterForm, value)
     })
     setIsEditDialogOpen(true)
   }

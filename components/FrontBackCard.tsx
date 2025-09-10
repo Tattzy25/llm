@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 export type FrontBackCardProps = {
   imageUrl?: string;
@@ -42,9 +43,11 @@ export default function FrontBackCard({
         <div className="flex items-center justify-between text-white px-[18px] py-4">
           <div className="flex items-center gap-3 min-w-0">
             {imageUrl ? (
-              <img
+              <Image
                 src={imageUrl}
                 alt={title || "card image"}
+                width={40}
+                height={40}
                 className="size-10 rounded-full object-cover border border-white/30 shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
               />
             ) : null}
