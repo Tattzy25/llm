@@ -1,4 +1,4 @@
-import { Character } from "@/components/character-selector"
+import { Character } from "@/components/Character-Selector/types"
 
 export const getCharacters = (): Character[] => {
   if (typeof window === 'undefined') {

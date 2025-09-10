@@ -95,7 +95,7 @@ export function PartyLineSettings({
               </SelectTrigger>
               <SelectContent>
                 {/* Recommended models for chat */}
-                <SelectItem value="gpt-4">⭐ GPT-4 (Recommended for chat)</SelectItem>
+                <SelectItem value="gpt-4o-mini">⭐ GPT-4o Mini (Recommended for chat)</SelectItem>
                 <SelectItem value="claude-sonnet-4-20250514">⭐ Claude Sonnet 4 (Recommended for chat)</SelectItem>
                 <SelectItem value="llama-3.3-70b-versatile">⭐ Llama 3.3 70B (Recommended for chat)</SelectItem>
                 <SelectItem value="groq/compound">⭐ Groq Compound (Recommended for chat)</SelectItem>

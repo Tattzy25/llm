@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useNotifications } from "@/components/notification-system"
 import { generateSecureApiKey, maskApiKey, validateApiKeyFormat, hashApiKey } from "@/lib/api-key-security"
-import { apiKeysDB, getCurrentUserId, cache, type ApiKeyRecord } from "@/lib/database"
 
 interface ApiKey {
   id: string
@@ -119,6 +118,7 @@ export function ApiKeys() {
         name: newKeyName.trim(),
         key: newKey,
         hashedKey: hashedKey,
+        masked_key: maskApiKey(newKey),
         createdAt: new Date()
       }
       

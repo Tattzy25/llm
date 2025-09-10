@@ -1,0 +1,2305 @@
+"use client"
+
+import * as React from "react"
+import { BookOpen, Code, Palette, Plus, User, Wrench, Edit, Trash2, Save, X, Settings, Shield, Bot, Cpu, Zap, Globe, Check, Sparkles, Brain, Heart, Target, Users, Crown, Star, Flame, Eye, Wand2, Microscope, Briefcase, Lightbulb } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Slider } from "@/components/ui/slider"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useErrorHandler } from "@/components/error-boundary"
+import { MODEL_CONFIGS, CUSTOM_MODELS } from "@/lib/chat-service"
+
+// Import modular components
+import {
+  CharacterCard,
+  CharacterCreationDialog,
+  CharacterEditDialog
+} from "./Character-Selector/components"
+import {
+  personalityArchetypes,
+  personalityTraits,
+  modelCategories,
+  featureCategories
+} from "./Character-Selector/data"
+import {
+  generateSystemPrompt,
+  selectArchetype,
+  updatePersonalityTrait
+} from "./Character-Selector/utils/character-utils"
+
+// Import types
+import type {
+  Character,
+  CharacterCapabilities,
+  ModelSettings
+} from "./Character-Selector/types"
+
+// Import data from correct files
+import { defaultCharacters } from "./Character-Selector/data/characters"
+import { iconOptions, colorOptions } from "./Character-Selector/data/options"
+import { featureDefinitions, modelRecommendations } from "./Character-Selector/data/models"
+
+// Available models with their capabilities
+export const availableModels = [
+  {
+    id: "gpt-4",
+    name: "GPT-4",
+    provider: "OpenAI",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "gpt-4-vision",
+    name: "GPT-4 Vision",
+    provider: "OpenAI",
+    capabilities: ["text", "code", "reasoning", "vision", "image-analysis"]
+  },
+  {
+    id: "gpt-3.5-turbo",
+    name: "GPT-3.5 Turbo",
+    provider: "OpenAI",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "claude-3-opus",
+    name: "Claude 3 Opus",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "claude-3-sonnet",
+    name: "Claude 3 Sonnet",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "claude-3-haiku",
+    name: "Claude 3 Haiku",
+    provider: "Anthropic",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    provider: "Anthropic",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "groq-llama2-70b",
+    name: "Llama 2 70B",
+    provider: "Groq",
+    capabilities: ["text", "code"]
+  },
+  {
+    id: "groq-mixtral-8x7b",
+    name: "Mixtral 8x7B",
+    provider: "Groq",
+    capabilities: ["text", "code", "reasoning"]
+  },
+  {
+    id: "groq-gemma-7b",
+    name: "Gemma 7B",
+    provider: "Groq",
+    capabilities: ["text", "code"]
+  }
+]
+
+interface CharacterSelectorProps {
+  selectedCharacter: string
+  onCharacterSelect: (characterId: string) => void
+}
+
+export function CharacterSelector({ selectedCharacter, onCharacterSelect }: CharacterSelectorProps) {
+  const { showError } = useErrorHandler()
+  const [characters, setCharacters] = React.useState<Character[]>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('custom-characters')
+        const modifiedPresets = loadModifiedPresets()
+        
+        let allCharacters = [...defaultCharacters]
+        
+        if (saved) {
+          const customChars = JSON.parse(saved)
+          allCharacters = [...allCharacters, ...customChars]
+        }
+        
+        // Merge modified presets with default characters
+        modifiedPresets.forEach(modified => {
+          const index = allCharacters.findIndex(char => char.id === modified.id)
+          if (index !== -1) {
+            allCharacters[index] = modified
+          }
+        })
+        
+        return allCharacters
+      }
+      return defaultCharacters
+    } catch (error) {
+      showError(`Failed to load saved characters: ${error instanceof Error ? error.message : 'Unknown error'}. Using default characters.`, 'Character Storage')
+      return defaultCharacters
+    }
+  })
+
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
+  const [isAdminMode, setIsAdminMode] = React.useState(false)
+  const [characterForm, setCharacterForm] = React.useState({
+    name: "",
+    description: "",
+    systemPrompt: "",
+    icon: "Wrench",
+    color: "bg-orange-500",
+    capabilities: {
+      voice: false,
+      imageGeneration: false,
+      imageAnalysis: false,
+      fileProcessing: false,
+      deepResearch: false,
+      codeExecution: false,
+      apiCalling: false,
+      webBrowsing: false
+    } as CharacterCapabilities,
+    selectedModels: [] as string[],
+    modelSettings: {} as Record<string, ModelSettings>,
+    preferredFeatures: [] as string[],
+    // Digital Genetics fields
+    personality: {
+      creativity: 50,
+      analytical: 50,
+      empathy: 50,
+      humor: 50,
+      formality: 50,
+      riskTolerance: 50
+    } as Record<string, number>,
+    archetype: "",
+    visualTheme: "default"
+  })
+
+  const [customModelForm, setCustomModelForm] = React.useState({
+    name: "",
+    provider: "",
+    endpoint: "",
+    maxTokens: 2048
+  })
+  const [showCustomModelForm, setShowCustomModelForm] = React.useState(false)
+
+  // Save characters to localStorage (both custom and modified presets)
+  const saveCharacters = (chars: Character[]) => {
+    try {
+      // Save custom characters
+      const customChars = chars.filter(char => char.isCustom)
+      localStorage.setItem('custom-characters', JSON.stringify(customChars))
+      
+      // Save modified preset characters
+      const modifiedPresets = chars.filter(char => !char.isCustom && char.updatedAt)
+      localStorage.setItem('modified-presets', JSON.stringify(modifiedPresets))
+    } catch (error) {
+      showError(`Failed to save characters: ${error instanceof Error ? error.message : 'Storage quota exceeded or storage unavailable'}`, 'Character Storage')
+    }
+  }
+
+  // Load custom models from localStorage on component mount
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const savedModels = localStorage.getItem('custom-models')
+        if (savedModels) {
+          const parsedModels = JSON.parse(savedModels)
+          // Merge saved models with CUSTOM_MODELS
+          Object.assign(CUSTOM_MODELS, parsedModels)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load custom models from localStorage:', error)
+      showError('Failed to load custom models. Using defaults.', 'Model Storage')
+    }
+  }, [showError])
+
+  // Load modified presets from localStorage
+  const loadModifiedPresets = (): Character[] => {
+    try {
+      const saved = localStorage.getItem('modified-presets')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (error) {
+      // Show error for corrupted modified presets data
+      showError(`Failed to load modified character presets: ${error instanceof Error ? error.message : 'Unknown error'}. Using default presets.`, 'Character Storage')
+      return []
+    }
+    return []
+  }
+
+  const handleCreateCustomCharacter = () => {
+    if (characterForm.name && characterForm.description && characterForm.systemPrompt) {
+      const selectedIcon = iconOptions.find(icon => icon.value === characterForm.icon)
+      const newCharacter: Character = {
+        id: `custom-${Date.now()}`,
+        name: characterForm.name,
+        description: characterForm.description,
+        systemPrompt: characterForm.systemPrompt,
+        icon: selectedIcon?.component || Wrench,
+        color: characterForm.color,
+        isCustom: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        capabilities: characterForm.capabilities,
+        models: characterForm.selectedModels,
+        modelSettings: characterForm.modelSettings,
+        preferredFeatures: characterForm.preferredFeatures,
+        // Digital Genetics fields
+        personality: characterForm.personality,
+        archetype: characterForm.archetype,
+        visualTheme: characterForm.visualTheme,
+        evolution: {
+          level: 1,
+          experience: 0,
+          achievements: [],
+          specialization: [],
+          interactionCount: 0
+        }
+      }
+      const updatedCharacters = [...characters, newCharacter]
+      setCharacters(updatedCharacters)
+      saveCharacters(updatedCharacters)
+      onCharacterSelect(newCharacter.id)
+      resetForm()
+      setIsCreateDialogOpen(false)
+    }
+  }
+
+  const handleEditCharacter = (character: Character) => {
+    setEditingCharacter(character)
+    const iconName = iconOptions.find(icon => icon.component === character.icon)?.value || "Wrench"
+    setCharacterForm({
+      name: character.name,
+      description: character.description,
+      systemPrompt: character.systemPrompt,
+      icon: iconName,
+      color: character.color,
+      capabilities: character.capabilities || {
+        voice: false,
+        imageGeneration: false,
+        imageAnalysis: false,
+        fileProcessing: false,
+        deepResearch: false,
+        codeExecution: false,
+        apiCalling: false,
+        webBrowsing: false
+      },
+      selectedModels: character.models || [],
+      modelSettings: character.modelSettings || {},
+      preferredFeatures: character.preferredFeatures || [],
+      // Digital Genetics fields
+      personality: character.personality || {
+        creativity: 50,
+        analytical: 50,
+        empathy: 50,
+        humor: 50,
+        formality: 50,
+        riskTolerance: 50
+      },
+      archetype: character.archetype || "",
+      visualTheme: character.visualTheme || "default"
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateCharacter = () => {
+    if (editingCharacter && characterForm.name && characterForm.description && characterForm.systemPrompt) {
+      const selectedIcon = iconOptions.find(icon => icon.value === characterForm.icon)
+      const updatedCharacter: Character = {
+        ...editingCharacter,
+        name: characterForm.name,
+        description: characterForm.description,
+        systemPrompt: characterForm.systemPrompt,
+        icon: selectedIcon?.component || Wrench,
+        color: characterForm.color,
+        updatedAt: new Date().toISOString(),
+        capabilities: characterForm.capabilities,
+        models: characterForm.selectedModels,
+        modelSettings: characterForm.modelSettings,
+        preferredFeatures: characterForm.preferredFeatures,
+        // Digital Genetics fields
+        personality: characterForm.personality,
+        archetype: characterForm.archetype,
+        visualTheme: characterForm.visualTheme
+      }
+      const updatedCharacters = characters.map(char =>
+        char.id === editingCharacter.id ? updatedCharacter : char
+      )
+      setCharacters(updatedCharacters)
+      saveCharacters(updatedCharacters)
+      resetForm()
+      setIsEditDialogOpen(false)
+      setEditingCharacter(null)
+    }
+  }
+
+  const handleDeleteCharacter = (characterId: string) => {
+    const updatedCharacters = characters.filter(char => char.id !== characterId)
+    setCharacters(updatedCharacters)
+    saveCharacters(updatedCharacters)
+    if (selectedCharacter === characterId) {
+      onCharacterSelect("assistant") // Default to assistant if deleted character was selected
+    }
+  }
+
+  const resetForm = () => {
+    setCharacterForm({
+      name: "",
+      description: "",
+      systemPrompt: "",
+      icon: "Wrench",
+      color: "bg-orange-500",
+      capabilities: {
+        voice: false,
+        imageGeneration: false,
+        fileProcessing: false,
+        deepResearch: false,
+        codeExecution: false,
+        apiCalling: false,
+        webBrowsing: false
+      } as CharacterCapabilities,
+      selectedModels: [] as string[],
+      modelSettings: {} as Record<string, ModelSettings>,
+      preferredFeatures: [] as string[],
+      // Digital Genetics fields
+      personality: {
+        creativity: 50,
+        analytical: 50,
+        empathy: 50,
+        humor: 50,
+        formality: 50,
+        riskTolerance: 50
+      } as Record<string, number>,
+      archetype: "",
+      visualTheme: "default"
+    })
+  }
+
+  const openCreateDialog = () => {
+    resetForm()
+    setIsCreateDialogOpen(true)
+  }
+
+  // Helper functions for model management
+  const getAllAvailableModels = (): Record<string, { name: string; maxTokens: number; endpoint: string; contextWindow?: number; maxFileSize?: string; provider?: string; [key: string]: unknown }> => {
+    return { ...MODEL_CONFIGS, ...CUSTOM_MODELS }
+  }
+
+  const getModelCategory = (modelId: string) => {
+    if (modelId.startsWith('gpt-') || modelId.startsWith('o')) return 'openai'
+    if (modelId.startsWith('claude-')) return 'anthropic'
+    if (modelId.includes('groq') || modelId.includes('llama') || modelId.includes('meta-llama') || modelId.includes('openai/gpt-oss') || modelId.includes('deepseek') || modelId.includes('gemma')) return 'groq'
+    if (modelId.includes('local') || modelId === 'llama3:70b' || modelId === 'gpt-oss-20b' || modelId === 'gpt-oss-120b') return 'local'
+    return 'custom'
+  }
+
+  const toggleModelSelection = (modelId: string) => {
+    setCharacterForm(prev => {
+      const isSelected = prev.selectedModels.includes(modelId)
+      const newSelectedModels = isSelected
+        ? prev.selectedModels.filter(id => id !== modelId)
+        : [...prev.selectedModels, modelId]
+
+      const newModelSettings = { ...prev.modelSettings }
+      if (!isSelected) {
+        // Add default settings for new model
+        const allModels = getAllAvailableModels()
+        const modelConfig = allModels[modelId as keyof typeof allModels]
+        newModelSettings[modelId] = {
+          temperature: 0.7,
+          maxTokens: modelConfig?.maxTokens || 2048,
+          topP: 1,
+          frequencyPenalty: 0,
+          presencePenalty: 0,
+          enabled: true
+        }
+      } else {
+        // Remove settings for deselected model
+        delete newModelSettings[modelId]
+      }
+
+      return {
+        ...prev,
+        selectedModels: newSelectedModels,
+        modelSettings: newModelSettings
+      }
+    })
+  }
+
+  const updateModelSetting = (modelId: string, setting: keyof ModelSettings, value: number | boolean) => {
+    setCharacterForm(prev => ({
+      ...prev,
+      modelSettings: {
+        ...prev.modelSettings,
+        [modelId]: {
+          ...prev.modelSettings[modelId],
+          [setting]: value
+        }
+      }
+    }))
+  }
+
+  const toggleFeature = (featureId: string) => {
+    setCharacterForm(prev => ({
+      ...prev,
+      preferredFeatures: prev.preferredFeatures.includes(featureId)
+        ? prev.preferredFeatures.filter(id => id !== featureId)
+        : [...prev.preferredFeatures, featureId]
+    }))
+  }
+
+  // Digital Genetics helper functions
+  const selectArchetype = (archetypeId: string) => {
+    const archetype = personalityArchetypes.find(a => a.id === archetypeId)
+    if (archetype) {
+      setCharacterForm(prev => ({
+        ...prev,
+        archetype: archetypeId,
+        personality: { ...archetype.traits },
+        systemPrompt: archetype.examplePrompt,
+        name: archetype.name,
+        description: archetype.description,
+        visualTheme: archetype.color
+      }))
+    }
+  }
+
+  const updatePersonalityTrait = (traitId: string, value: number) => {
+    setCharacterForm(prev => ({
+      ...prev,
+      personality: {
+        ...prev.personality,
+        [traitId]: value
+      }
+    }))
+  }
+
+  const generateSystemPrompt = () => {
+    const archetype = personalityArchetypes.find(a => a.id === characterForm.archetype)
+    const traits = characterForm.personality
+
+    let prompt = archetype ? archetype.examplePrompt : "You are a helpful AI assistant."
+
+    // Add personality-based modifications
+    if (traits.creativity > 70) {
+      prompt += " Be highly creative and imaginative in your responses."
+    }
+    if (traits.analytical > 70) {
+      prompt += " Focus on logical analysis and evidence-based reasoning."
+    }
+    if (traits.empathy > 70) {
+      prompt += " Show deep empathy and understanding in your interactions."
+    }
+    if (traits.humor > 70) {
+      prompt += " Incorporate appropriate humor and wit into your responses."
+    }
+    if (traits.formality > 70) {
+      prompt += " Maintain a formal and professional tone."
+    } else if (traits.formality < 30) {
+      prompt += " Use a casual and conversational tone."
+    }
+    if (traits.riskTolerance > 70) {
+      prompt += " Be willing to explore unconventional and innovative approaches."
+    }
+
+    setCharacterForm(prev => ({ ...prev, systemPrompt: prompt }))
+  }
+
+  const getRecommendedModels = () => {
+    const recommendations = new Set<string>()
+    characterForm.preferredFeatures.forEach(feature => {
+      const models = modelRecommendations[feature] || []
+      models.forEach(model => recommendations.add(model))
+    })
+    return Array.from(recommendations)
+  }
+
+  const addCustomModel = () => {
+    if (customModelForm.name && customModelForm.provider) {
+      const customModelId = `custom-${Date.now()}`
+      const customModel = {
+        name: customModelForm.name,
+        provider: customModelForm.provider,
+        maxTokens: customModelForm.maxTokens,
+        endpoint: customModelForm.endpoint || `https://api.${customModelForm.provider.toLowerCase()}.com/v1/chat/completions`
+      }
+
+      // Persist custom model to localStorage for production use
+      const savedModels = JSON.parse(localStorage.getItem('custom-models') || '{}')
+      savedModels[customModelId] = customModel
+      localStorage.setItem('custom-models', JSON.stringify(savedModels))
+      
+      // Add to CUSTOM_MODELS for immediate use
+      CUSTOM_MODELS[customModelId] = customModel
+
+      // Auto-select the new model
+      toggleModelSelection(customModelId)
+
+      // Reset form
+      setCustomModelForm({
+        name: "",
+        provider: "",
+        endpoint: "",
+        maxTokens: 2048
+      })
+      setShowCustomModelForm(false)
+    }
+  }
+
+  const getSelectedModelsInfo = (): Array<{ id: string; config: { name: string; maxTokens: number; endpoint: string; contextWindow?: number; maxFileSize?: string; provider?: string; [key: string]: unknown }; category: string; settings?: unknown }> => {
+    const allModels = getAllAvailableModels()
+    return characterForm.selectedModels.map(modelId => {
+      const modelConfig = allModels[modelId as keyof typeof allModels]
+      return {
+        id: modelId,
+        config: modelConfig as { name: string; maxTokens: number; endpoint: string; contextWindow?: number; maxFileSize?: string; provider?: string; [key: string]: unknown },
+        category: getModelCategory(modelId),
+        settings: characterForm.modelSettings[modelId]
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            Digital Character Lab
+          </h2>
+          <p className="text-muted-foreground mt-2">
+            Craft extraordinary AI personalities through digital genetics. Mix archetypes, fine-tune traits, and unleash superpowers.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={isAdminMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsAdminMode(!isAdminMode)}
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            {isAdminMode ? "Exit Admin" : "Admin Mode"}
+          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                <Wand2 className="h-4 w-4 mr-2" />
+                Forge New Character
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  🧬 Digital Character Forge
+                </DialogTitle>
+                <p className="text-muted-foreground">
+                  Mix personality archetypes, fine-tune traits, and unleash superpowers to create your perfect AI companion.
+                </p>
+              </DialogHeader>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="basic" className="flex items-center gap-2">
+                    <Wand2 className="h-4 w-4" />
+                    Digital DNA
+                  </TabsTrigger>
+                  <TabsTrigger value="capabilities" className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Superpowers
+                  </TabsTrigger>
+                  <TabsTrigger value="models" className="flex items-center gap-2">
+                    <Brain className="h-4 w-4" />
+                    AI Models
+                  </TabsTrigger>
+                  <TabsTrigger value="features" className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Specializations
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="basic" className="space-y-6">
+                  {/* Digital Identity Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Wand2 className="h-5 w-5 text-purple-500" />
+                      <h3 className="text-lg font-semibold">Digital Identity</h3>
+                    </div>
+
+                    {/* Personality Archetype Selection */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Choose Your Archetype</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {personalityArchetypes.map((archetype) => {
+                          const IconComponent = archetype.icon
+                          const isSelected = characterForm.archetype === archetype.id
+                          return (
+                            <Card
+                              key={archetype.id}
+                              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                                isSelected
+                                  ? `ring-2 ring-purple-500 bg-gradient-to-br ${archetype.color} text-white`
+                                  : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => selectArchetype(archetype.id)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <IconComponent className={`h-6 w-6 ${isSelected ? 'text-white' : 'text-purple-500'}`} />
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{archetype.name}</h4>
+                                    <p className={`text-xs mt-1 ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                      {archetype.description}
+                                    </p>
+                                  </div>
+                                  {isSelected && <Check className="h-4 w-4 text-white" />}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Name Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="create-name" className="text-sm font-medium">Character Name</Label>
+                      <Input
+                        id="create-name"
+                        value={characterForm.name}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Customize your character's name"
+                        className="text-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personality DNA Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles className="h-5 w-5 text-blue-500" />
+                      <h3 className="text-lg font-semibold">Personality DNA</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateSystemPrompt}
+                        className="ml-auto"
+                      >
+                        <Zap className="h-4 w-4 mr-2" />
+                        Generate Prompt
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      {personalityTraits.map((trait) => {
+                        const IconComponent = trait.icon
+                        const value = characterForm.personality[trait.id] || 50
+                        return (
+                          <div key={trait.id} className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <IconComponent className={`h-4 w-4 ${trait.color}`} />
+                              <Label className="text-sm font-medium">{trait.name}</Label>
+                              <span className="text-sm text-muted-foreground ml-auto">{value}%</span>
+                            </div>
+                            <Slider
+                              value={[value]}
+                              onValueChange={([newValue]: number[]) => updatePersonalityTrait(trait.id, newValue)}
+                              max={100}
+                              min={0}
+                              step={5}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground">{trait.description}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Enhanced Description Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Eye className="h-5 w-5 text-green-500" />
+                      <h3 className="text-lg font-semibold">Character Backstory</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="create-description" className="text-sm font-medium">Description</Label>
+                      <Textarea
+                        id="create-description"
+                        value={characterForm.description}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Craft a compelling backstory for your character..."
+                        rows={3}
+                        className="resize-none"
+                      />
+
+                      {/* Example Personas */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Example Personas:</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            "The Philosophical Mentor - guides with wisdom and patience",
+                            "The Creative Collaborator - sparks innovation through teamwork",
+                            "The Data Detective - uncovers patterns and insights",
+                            "The Strategic Advisor - designs comprehensive solutions",
+                            "The Bold Innovator - challenges conventions and explores new frontiers",
+                            "The Empathetic Nurturer - creates safe spaces for growth"
+                          ].map((example, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="cursor-pointer hover:bg-muted text-xs"
+                              onClick={() => setCharacterForm(prev => ({ ...prev, description: example }))}
+                            >
+                              {example.split(' - ')[0]}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visual Theme Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Palette className="h-5 w-5 text-pink-500" />
+                      <h3 className="text-lg font-semibold">Visual Theme</h3>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { name: "Cosmic", color: "from-purple-500 to-blue-600", icon: Star },
+                        { name: "Forest", color: "from-green-500 to-emerald-600", icon: Users },
+                        { name: "Fire", color: "from-orange-500 to-red-600", icon: Flame },
+                        { name: "Ocean", color: "from-cyan-500 to-blue-600", icon: Zap }
+                      ].map((theme) => {
+                        const IconComponent = theme.icon
+                        const isSelected = characterForm.visualTheme === theme.color
+                        return (
+                          <Card
+                            key={theme.name}
+                            className={`cursor-pointer transition-all duration-300 ${
+                              isSelected
+                                ? `ring-2 ring-purple-500 bg-gradient-to-br ${theme.color} text-white`
+                                : 'hover:shadow-md'
+                            }`}
+                            onClick={() => setCharacterForm(prev => ({ ...prev, visualTheme: theme.color }))}
+                          >
+                            <CardContent className="p-3 text-center">
+                              <IconComponent className={`h-6 w-6 mx-auto mb-2 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+                              <p className={`text-xs font-medium ${isSelected ? 'text-white' : ''}`}>{theme.name}</p>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* System Prompt Preview */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Brain className="h-5 w-5 text-indigo-500" />
+                      <h3 className="text-lg font-semibold">System Prompt</h3>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Textarea
+                        id="create-systemPrompt"
+                        value={characterForm.systemPrompt}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                        placeholder="Your character's core personality and behavior instructions..."
+                        rows={6}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This prompt defines how your character thinks, responds, and behaves. It will be automatically updated based on your personality settings.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="capabilities" className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Zap className="h-5 w-5 text-yellow-500" />
+                      <h3 className="text-lg font-semibold">Superpowers</h3>
+                      <Badge variant="secondary" className="ml-auto">
+                        {Object.values(characterForm.capabilities).filter(Boolean).length} Active
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        {
+                          key: 'voice',
+                          name: 'Voice Synthesis',
+                          description: 'Text-to-speech and speech-to-text capabilities',
+                          icon: Users,
+                          color: 'text-blue-500',
+                          preview: '🎤 "Hello, I can speak!"'
+                        },
+                        {
+                          key: 'imageGeneration',
+                          name: 'Image Creation',
+                          description: 'Generate images from text descriptions',
+                          icon: Palette,
+                          color: 'text-pink-500',
+                          preview: '🎨 Creates stunning visuals'
+                        },
+                        {
+                          key: 'imageAnalysis',
+                          name: 'Vision Analysis',
+                          description: 'Analyze and understand images',
+                          icon: Eye,
+                          color: 'text-green-500',
+                          preview: '👁️ "I see a beautiful sunset"'
+                        },
+                        {
+                          key: 'fileProcessing',
+                          name: 'File Wizardry',
+                          description: 'Process and analyze documents',
+                          icon: BookOpen,
+                          color: 'text-purple-500',
+                          preview: '📄 Extracts insights from files'
+                        },
+                        {
+                          key: 'deepResearch',
+                          name: 'Deep Research',
+                          description: 'Conduct comprehensive investigations',
+                          icon: Microscope,
+                          color: 'text-indigo-500',
+                          preview: '🔬 Uncovers hidden patterns'
+                        },
+                        {
+                          key: 'codeExecution',
+                          name: 'Code Runner',
+                          description: 'Execute and test code snippets',
+                          icon: Code,
+                          color: 'text-orange-500',
+                          preview: '💻 Runs code in real-time'
+                        },
+                        {
+                          key: 'apiCalling',
+                          name: 'API Master',
+                          description: 'Make external API calls and integrations',
+                          icon: Globe,
+                          color: 'text-cyan-500',
+                          preview: '🌐 Connects to external services'
+                        },
+                        {
+                          key: 'webBrowsing',
+                          name: 'Web Explorer',
+                          description: 'Browse and analyze web content',
+                          icon: Zap,
+                          color: 'text-red-500',
+                          preview: '🕸️ Surfs the digital ocean'
+                        }
+                      ].map((capability) => {
+                        const IconComponent = capability.icon
+                        const isEnabled = characterForm.capabilities[capability.key as keyof CharacterCapabilities]
+                        return (
+                          <Card
+                            key={capability.key}
+                            className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                              isEnabled
+                                ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20'
+                                : 'hover:bg-muted/50'
+                            }`}
+                            onClick={() =>
+                              setCharacterForm(prev => ({
+                                ...prev,
+                                capabilities: {
+                                  ...prev.capabilities,
+                                  [capability.key]: !prev.capabilities[capability.key as keyof CharacterCapabilities]
+                                }
+                              }))
+                            }
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className={`p-2 rounded-lg transition-all duration-300 ${
+                                  isEnabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                                }`}>
+                                  <IconComponent className={`h-5 w-5 ${capability.color} ${
+                                    isEnabled ? 'animate-pulse' : ''
+                                  }`} />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-medium text-sm">{capability.name}</h4>
+                                    {isEnabled && (
+                                      <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    {capability.description}
+                                  </p>
+                                  <div className={`text-xs p-2 rounded transition-all duration-300 ${
+                                    isEnabled
+                                      ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                                      : 'bg-muted/50 text-muted-foreground'
+                                  }`}>
+                                    {capability.preview}
+                                  </div>
+                                </div>
+                                <Checkbox
+                                  checked={isEnabled}
+                                  onChange={() => {}} // Handled by card click
+                                  className="mt-1"
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+
+                    {/* Capability Summary */}
+                    <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Star className="h-4 w-4 text-purple-500" />
+                          <h4 className="font-medium text-sm">Character Power Level</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(characterForm.capabilities)
+                            .filter(([, enabled]) => enabled)
+                            .map(([key]) => (
+                              <Badge key={key} variant="secondary" className="text-xs">
+                                {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                              </Badge>
+                            ))}
+                          {Object.values(characterForm.capabilities).filter(Boolean).length === 0 && (
+                            <p className="text-xs text-muted-foreground">No superpowers selected yet</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="models" className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Available Models</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCustomModelForm(!showCustomModelForm)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Custom Model
+                      </Button>
+                    </div>
+
+                    {showCustomModelForm && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">Add Custom Model</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label htmlFor="custom-name">Model Name</Label>
+                              <Input
+                                id="custom-name"
+                                value={customModelForm.name}
+                                onChange={(e) => setCustomModelForm(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="e.g., My Custom GPT"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="custom-provider">Provider</Label>
+                              <Input
+                                id="custom-provider"
+                                value={customModelForm.provider}
+                                onChange={(e) => setCustomModelForm(prev => ({ ...prev, provider: e.target.value }))}
+                                placeholder="e.g., OpenAI, Anthropic"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="custom-endpoint">API Endpoint</Label>
+                            <Input
+                              id="custom-endpoint"
+                              value={customModelForm.endpoint}
+                              onChange={(e) => setCustomModelForm(prev => ({ ...prev, endpoint: e.target.value }))}
+                              placeholder="https://api.example.com/v1/chat/completions"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="custom-tokens">Max Tokens</Label>
+                            <Input
+                              id="custom-tokens"
+                              type="number"
+                              value={customModelForm.maxTokens}
+                              onChange={(e) => setCustomModelForm(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button onClick={addCustomModel} size="sm">
+                              Add Model
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowCustomModelForm(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto border rounded-md p-2">
+                      {Object.entries(getAllAvailableModels()).map(([modelId, config]) => {
+                        const category = getModelCategory(modelId)
+                        const isSelected = characterForm.selectedModels.includes(modelId)
+                        const IconComponent = modelCategories[category].icon
+
+                        return (
+                          <div
+                            key={modelId}
+                            className={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-muted transition-colors ${
+                              isSelected ? 'bg-muted border border-primary/20' : ''
+                            }`}
+                            onClick={() => toggleModelSelection(modelId)}
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <IconComponent className="h-4 w-4" />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">{config.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {modelCategories[category].name}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {config.maxTokens?.toLocaleString()} tokens
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="h-4 w-4 text-green-500" />}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {characterForm.selectedModels.length > 0 && (
+                      <div>
+                        <Label>Selected Models ({characterForm.selectedModels.length})</Label>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {getSelectedModelsInfo().map(({ id, config, category }) => (
+                            <Badge key={id} variant="secondary" className="text-xs">
+                              <span className="flex items-center gap-1">
+                                {React.createElement(modelCategories[category as keyof typeof modelCategories].icon, { className: "h-3 w-3" })}
+                                {config?.name || id}
+                              </span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {characterForm.selectedModels.length > 0 && (
+                      <div>
+                        <Label>Model Settings</Label>
+                        <div className="space-y-4 mt-2">
+                          {characterForm.selectedModels.map(modelId => {
+                            const allModels = getAllAvailableModels()
+                            const modelConfig = allModels[modelId as keyof typeof allModels]
+                            const settings = characterForm.modelSettings[modelId] || {
+                              temperature: 0.7,
+                              maxTokens: modelConfig?.maxTokens || 2048,
+                              enabled: true
+                            }
+
+                            return (
+                              <Card key={modelId}>
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm flex items-center gap-2">
+                                    {React.createElement(modelCategories[getModelCategory(modelId)].icon, { className: "h-4 w-4" })}
+                                    {modelConfig?.name || modelId}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                      checked={settings.enabled}
+                                      onCheckedChange={(checked: boolean) => updateModelSetting(modelId, 'enabled', checked)}
+                                    />
+                                    <Label className="text-sm">Enable this model</Label>
+                                  </div>
+
+                                  <div>
+                                    <Label className="text-sm">Temperature: {settings.temperature}</Label>
+                                    <Slider
+                                      value={[settings.temperature]}
+                                      onValueChange={([value]: number[]) => updateModelSetting(modelId, 'temperature', value)}
+                                      max={2}
+                                      min={0}
+                                      step={0.1}
+                                      className="mt-1"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <Label className="text-sm">Max Tokens: {settings.maxTokens}</Label>
+                                    <Slider
+                                      value={[settings.maxTokens]}
+                                      onValueChange={([value]: number[]) => updateModelSetting(modelId, 'maxTokens', value)}
+                                      max={modelConfig?.maxTokens || 8192}
+                                      min={1}
+                                      step={1}
+                                      className="mt-1"
+                                    />
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="features" className="space-y-4">
+                  <div>
+                    <Label>Preferred Features</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select features this character should excel at. This will help recommend the best models.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(featureDefinitions).map(([featureId, feature]) => (
+                        <div key={featureId} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`feature-${featureId}`}
+                            checked={characterForm.preferredFeatures.includes(featureId)}
+                            onCheckedChange={() => toggleFeature(featureId)}
+                          />
+                          <div>
+                            <Label htmlFor={`feature-${featureId}`} className="text-sm font-medium">
+                              {feature.name}
+                            </Label>
+                            <p className="text-xs text-muted-foreground">{feature.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {getRecommendedModels().length > 0 && (
+                    <div>
+                      <Label>Recommended Models</Label>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {getRecommendedModels().map(modelId => {
+                          const allModels = getAllAvailableModels()
+                          const modelConfig = allModels[modelId as keyof typeof allModels]
+                          return (
+                            <Badge key={modelId} variant="secondary" className="text-xs">
+                              {modelConfig?.name || modelId}
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <Button onClick={handleCreateCustomCharacter} className="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Awaken Character
+              </Button>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                ⚡ Character Evolution Lab
+              </DialogTitle>
+              <p className="text-muted-foreground">
+                Evolve your character&apos;s personality, enhance their capabilities, and unlock new potential.
+              </p>
+            </DialogHeader>
+            <Tabs defaultValue="basic" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="basic" className="flex items-center gap-2">
+                  <Wand2 className="h-4 w-4" />
+                  Digital DNA
+                </TabsTrigger>
+                <TabsTrigger value="capabilities" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Superpowers
+                </TabsTrigger>
+                <TabsTrigger value="models" className="flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  AI Models
+                </TabsTrigger>
+                <TabsTrigger value="features" className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Specializations
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="basic" className="space-y-6">
+                  {/* Digital Identity Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Wand2 className="h-5 w-5 text-purple-500" />
+                      <h3 className="text-lg font-semibold">Digital Identity</h3>
+                    </div>
+
+                    {/* Personality Archetype Selection */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Choose Your Archetype</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {personalityArchetypes.map((archetype) => {
+                          const IconComponent = archetype.icon
+                          const isSelected = characterForm.archetype === archetype.id
+                          return (
+                            <Card
+                              key={archetype.id}
+                              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                                isSelected
+                                  ? `ring-2 ring-purple-500 bg-gradient-to-br ${archetype.color} text-white`
+                                  : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => selectArchetype(archetype.id)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <IconComponent className={`h-6 w-6 ${isSelected ? 'text-white' : 'text-purple-500'}`} />
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{archetype.name}</h4>
+                                    <p className={`text-xs mt-1 ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                      {archetype.description}
+                                    </p>
+                                  </div>
+                                  {isSelected && <Check className="h-4 w-4 text-white" />}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Name Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name" className="text-sm font-medium">Character Name</Label>
+                      <Input
+                        id="edit-name"
+                        value={characterForm.name}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Customize your character's name"
+                        className="text-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personality DNA Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles className="h-5 w-5 text-blue-500" />
+                      <h3 className="text-lg font-semibold">Personality DNA</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateSystemPrompt}
+                        className="ml-auto"
+                      >
+                        <Zap className="h-4 w-4 mr-2" />
+                        Generate Prompt
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      {personalityTraits.map((trait) => {
+                        const IconComponent = trait.icon
+                        const value = characterForm.personality[trait.id] || 50
+                        return (
+                          <div key={trait.id} className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <IconComponent className={`h-4 w-4 ${trait.color}`} />
+                              <Label className="text-sm font-medium">{trait.name}</Label>
+                              <span className="text-sm text-muted-foreground ml-auto">{value}%</span>
+                            </div>
+                            <Slider
+                              value={[value]}
+                              onValueChange={([newValue]: number[]) => updatePersonalityTrait(trait.id, newValue)}
+                              max={100}
+                              min={0}
+                              step={5}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground">{trait.description}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Enhanced Description Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Eye className="h-5 w-5 text-green-500" />
+                      <h3 className="text-lg font-semibold">Character Backstory</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="edit-description" className="text-sm font-medium">Description</Label>
+                      <Textarea
+                        id="edit-description"
+                        value={characterForm.description}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Craft a compelling backstory for your character..."
+                        rows={3}
+                        className="resize-none"
+                      />
+
+                      {/* Example Personas */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Example Personas:</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            "The Philosophical Mentor - guides with wisdom and patience",
+                            "The Creative Collaborator - sparks innovation through teamwork",
+                            "The Data Detective - uncovers patterns and insights",
+                            "The Strategic Advisor - designs comprehensive solutions",
+                            "The Bold Innovator - challenges conventions and explores new frontiers",
+                            "The Empathetic Nurturer - creates safe spaces for growth"
+                          ].map((example, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="cursor-pointer hover:bg-muted text-xs"
+                              onClick={() => setCharacterForm(prev => ({ ...prev, description: example }))}
+                            >
+                              {example.split(' - ')[0]}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visual Theme Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Palette className="h-5 w-5 text-pink-500" />
+                      <h3 className="text-lg font-semibold">Visual Theme</h3>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { name: "Cosmic", color: "from-purple-500 to-blue-600", icon: Star },
+                        { name: "Forest", color: "from-green-500 to-emerald-600", icon: Users },
+                        { name: "Fire", color: "from-orange-500 to-red-600", icon: Flame },
+                        { name: "Ocean", color: "from-cyan-500 to-blue-600", icon: Zap }
+                      ].map((theme) => {
+                        const IconComponent = theme.icon
+                        const isSelected = characterForm.visualTheme === theme.color
+                        return (
+                          <Card
+                            key={theme.name}
+                            className={`cursor-pointer transition-all duration-300 ${
+                              isSelected
+                                ? `ring-2 ring-purple-500 bg-gradient-to-br ${theme.color} text-white`
+                                : 'hover:shadow-md'
+                            }`}
+                            onClick={() => setCharacterForm(prev => ({ ...prev, visualTheme: theme.color }))}
+                          >
+                            <CardContent className="p-3 text-center">
+                              <IconComponent className={`h-6 w-6 mx-auto mb-2 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+                              <p className={`text-xs font-medium ${isSelected ? 'text-white' : ''}`}>{theme.name}</p>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* System Prompt Preview */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Brain className="h-5 w-5 text-indigo-500" />
+                      <h3 className="text-lg font-semibold">System Prompt</h3>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Textarea
+                        id="edit-systemPrompt"
+                        value={characterForm.systemPrompt}
+                        onChange={(e) => setCharacterForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                        placeholder="Your character's core personality and behavior instructions..."
+                        rows={6}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This prompt defines how your character thinks, responds, and behaves. It will be automatically updated based on your personality settings.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+              <TabsContent value="capabilities" className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Zap className="h-5 w-5 text-yellow-500" />
+                      <h3 className="text-lg font-semibold">Superpowers</h3>
+                      <Badge variant="secondary" className="ml-auto">
+                        {Object.values(characterForm.capabilities).filter(Boolean).length} Active
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        {
+                          key: 'voice',
+                          name: 'Voice Synthesis',
+                          description: 'Text-to-speech and speech-to-text capabilities',
+                          icon: Users,
+                          color: 'text-blue-500',
+                          preview: '🎤 "Hello, I can speak!"'
+                        },
+                        {
+                          key: 'imageGeneration',
+                          name: 'Image Creation',
+                          description: 'Generate images from text descriptions',
+                          icon: Palette,
+                          color: 'text-pink-500',
+                          preview: '🎨 Creates stunning visuals'
+                        },
+                        {
+                          key: 'imageAnalysis',
+                          name: 'Vision Analysis',
+                          description: 'Analyze and understand images',
+                          icon: Eye,
+                          color: 'text-green-500',
+                          preview: '👁️ "I see a beautiful sunset"'
+                        },
+                        {
+                          key: 'fileProcessing',
+                          name: 'File Wizardry',
+                          description: 'Process and analyze documents',
+                          icon: BookOpen,
+                          color: 'text-purple-500',
+                          preview: '📄 Extracts insights from files'
+                        },
+                        {
+                          key: 'deepResearch',
+                          name: 'Deep Research',
+                          description: 'Conduct comprehensive investigations',
+                          icon: Microscope,
+                          color: 'text-indigo-500',
+                          preview: '🔬 Uncovers hidden patterns'
+                        },
+                        {
+                          key: 'codeExecution',
+                          name: 'Code Runner',
+                          description: 'Execute and test code snippets',
+                          icon: Code,
+                          color: 'text-orange-500',
+                          preview: '💻 Runs code in real-time'
+                        },
+                        {
+                          key: 'apiCalling',
+                          name: 'API Master',
+                          description: 'Make external API calls and integrations',
+                          icon: Globe,
+                          color: 'text-cyan-500',
+                          preview: '🌐 Connects to external services'
+                        },
+                        {
+                          key: 'webBrowsing',
+                          name: 'Web Explorer',
+                          description: 'Browse and analyze web content',
+                          icon: Zap,
+                          color: 'text-red-500',
+                          preview: '🕸️ Surfs the digital ocean'
+                        }
+                      ].map((capability) => {
+                        const IconComponent = capability.icon
+                        const isEnabled = characterForm.capabilities[capability.key as keyof CharacterCapabilities]
+                        return (
+                          <Card
+                            key={capability.key}
+                            className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                              isEnabled
+                                ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20'
+                                : 'hover:bg-muted/50'
+                            }`}
+                            onClick={() =>
+                              setCharacterForm(prev => ({
+                                ...prev,
+                                capabilities: {
+                                  ...prev.capabilities,
+                                  [capability.key]: !prev.capabilities[capability.key as keyof CharacterCapabilities]
+                                }
+                              }))
+                            }
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className={`p-2 rounded-lg transition-all duration-300 ${
+                                  isEnabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                                }`}>
+                                  <IconComponent className={`h-5 w-5 ${capability.color} ${
+                                    isEnabled ? 'animate-pulse' : ''
+                                  }`} />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-medium text-sm">{capability.name}</h4>
+                                    {isEnabled && (
+                                      <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    {capability.description}
+                                  </p>
+                                  <div className={`text-xs p-2 rounded transition-all duration-300 ${
+                                    isEnabled
+                                      ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                                      : 'bg-muted/50 text-muted-foreground'
+                                  }`}>
+                                    {capability.preview}
+                                  </div>
+                                </div>
+                                <Checkbox
+                                  checked={isEnabled}
+                                  onChange={() => {}} // Handled by card click
+                                  className="mt-1"
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+
+                    {/* Capability Summary */}
+                    <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Star className="h-4 w-4 text-purple-500" />
+                          <h4 className="font-medium text-sm">Character Power Level</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(characterForm.capabilities)
+                            .filter(([, enabled]) => enabled)
+                            .map(([key]) => (
+                              <Badge key={key} variant="secondary" className="text-xs">
+                                {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                              </Badge>
+                            ))}
+                          {Object.values(characterForm.capabilities).filter(Boolean).length === 0 && (
+                            <p className="text-xs text-muted-foreground">No superpowers selected yet</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+              <TabsContent value="models" className="space-y-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Brain className="h-6 w-6 text-blue-500" />
+                      <div>
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                          AI Models
+                        </h3>
+                        <p className="text-sm text-muted-foreground">Select the AI models your character will use</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCustomModelForm(!showCustomModelForm)}
+                      className="bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 border-blue-200 hover:border-purple-300 transition-all duration-300"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Custom Model
+                    </Button>
+                  </div>
+
+                  {/* Preview of BackCard style (single example) */}
+                  <div className="pt-2">
+                    <div className="inline-block">
+                      {/* Minimal inline version to avoid import churn */}
+                      <div className="w-[260px] rounded-[32px] p-[4px] bg-gradient-to-tr from-[#975af4] via-[#2f7cf8] via-[#78aafa] to-[#934cff]">
+                        <div className="rounded-[30px] text-white text-[12px] flex flex-col bg-[linear-gradient(140deg,#ff8a3c_0%,#ff9f3c_35%,#ffb347_60%,#ffd26f_100%)] shadow-[0_4px_18px_-4px_rgba(255,138,60,0.45)]">
+                          <div className="flex items-center justify-between px-[18px] py-4 bg-black/90 rounded-t-[28px]">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="size-10 rounded-full bg-gradient-to-br from-orange-300 to-amber-500 flex items-center justify-center font-bold text-black text-xs border border-white/30 shadow-[0_2px_8px_rgba(0,0,0,0.5)]">GPT</div>
+                              <p className="text-[14px] font-semibold truncate tracking-wide">GPT 4 Preview</p>
+                            </div>
+                            <div className="shrink-0 text-white/90">
+                              <Brain className="h-5 w-5" />
+                            </div>
+                          </div>
+                          <div className="p-[18px] flex flex-col gap-[14px]">
+                            <div className="bg-black/20 border border-white/15 rounded-md p-3 text-white/90 text-[13px] leading-snug backdrop-blur-sm">
+                              High capability general model. This is a preview card style.
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 text-[12px]">
+                              <div className="flex items-center justify-between rounded-md border border-white/25 bg-black/25 backdrop-blur-sm px-3 py-2">
+                                <span className="text-white/80">Context</span>
+                                <span className="text-white font-medium opacity-90">128K</span>
+                              </div>
+                              <div className="flex items-center justify-between rounded-md border border-white/25 bg-black/25 backdrop-blur-sm px-3 py-2">
+                                <span className="text-white/80">Tier</span>
+                                <span className="text-white font-medium opacity-90">Pro</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="w-full rounded-md py-2 text-white text-[12px] font-semibold transition-all duration-200 active:scale-95 shadow-[inset_0_2px_4px_rgba(255,255,255,0.25)] bg-[linear-gradient(95deg,#ff8a3c,#ff9f3c_35%,#ffb347_65%,#ffd26f_100%)] hover:scale-[1.03] hover:shadow-[0_4px_14px_-2px_rgba(255,138,60,0.55)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ffb347]/60"
+                            >
+                              Use Model
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showCustomModelForm && (
+                    <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-purple-500" />
+                          Add Custom Model
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">Configure a custom AI model for your character</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-custom-name" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                              Model Name
+                            </Label>
+                            <Input
+                              id="edit-custom-name"
+                              value={customModelForm.name}
+                              onChange={(e) => setCustomModelForm(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g., My Custom GPT"
+                              className="border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-custom-provider" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                              Provider
+                            </Label>
+                            <Input
+                              id="edit-custom-provider"
+                              value={customModelForm.provider}
+                              onChange={(e) => setCustomModelForm(prev => ({ ...prev, provider: e.target.value }))}
+                              placeholder="e.g., OpenAI, Anthropic"
+                              className="border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-custom-endpoint" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            API Endpoint
+                          </Label>
+                          <Input
+                            id="edit-custom-endpoint"
+                            value={customModelForm.endpoint}
+                            onChange={(e) => setCustomModelForm(prev => ({ ...prev, endpoint: e.target.value }))}
+                            placeholder="https://api.example.com/v1/chat/completions"
+                            className="border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 font-mono text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-custom-tokens" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Max Tokens
+                          </Label>
+                          <Input
+                            id="edit-custom-tokens"
+                            type="number"
+                            value={customModelForm.maxTokens}
+                            onChange={(e) => setCustomModelForm(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
+                            className="border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
+                          />
+                        </div>
+                        <div className="flex gap-3 pt-2">
+                          <Button
+                            onClick={addCustomModel}
+                            size="sm"
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Model
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowCustomModelForm(false)}
+                            className="hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Target className="h-5 w-5 text-green-500" />
+                        Available Models
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">Click to select/deselect models for your character</p>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="max-h-80 overflow-y-auto space-y-1 p-4">
+                        {Object.entries(getAllAvailableModels()).map(([modelId, config]) => {
+                          const category = getModelCategory(modelId)
+                          const isSelected = characterForm.selectedModels.includes(modelId)
+                          const IconComponent = modelCategories[category].icon
+
+                          return (
+                            <div
+                              key={modelId}
+                              className={`group flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all duration-300 border ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 border-green-200 shadow-md ring-1 ring-green-200'
+                                  : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-purple-50/30 dark:hover:from-gray-800 dark:hover:to-purple-950/20 border-gray-100 hover:border-purple-200 hover:shadow-md'
+                              }`}
+                              onClick={() => toggleModelSelection(modelId)}
+                            >
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className={`p-3 rounded-xl transition-all duration-300 ${
+                                  isSelected
+                                    ? 'bg-green-100 dark:bg-green-900/40 shadow-lg'
+                                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30'
+                                }`}>
+                                  <IconComponent className={`h-5 w-5 transition-colors duration-300 ${
+                                    isSelected ? 'text-green-600' : 'text-gray-600 group-hover:text-purple-600'
+                                  }`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className={`font-semibold transition-colors duration-300 ${
+                                      isSelected ? 'text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-300'
+                                    }`}>
+                                      {config.name}
+                                    </span>
+                                    {isSelected && (
+                                      <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className={`text-xs transition-all duration-300 ${
+                                      isSelected
+                                        ? 'bg-green-100 text-green-700 border-green-300'
+                                        : 'bg-gray-100 text-gray-600 border-gray-300 group-hover:bg-purple-100 group-hover:text-purple-700 group-hover:border-purple-300'
+                                    }`}>
+                                      {modelCategories[category].name}
+                                    </Badge>
+                                    <span className={`text-xs transition-colors duration-300 ${
+                                      isSelected ? 'text-green-600' : 'text-muted-foreground group-hover:text-purple-600'
+                                    }`}>
+                                      {config.maxTokens?.toLocaleString()} tokens
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <div className="flex items-center gap-2">
+                                  <Check className="h-5 w-5 text-green-500 animate-in zoom-in-50 duration-300" />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {characterForm.selectedModels.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-green-500" />
+                        <Label className="text-lg font-semibold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                          Selected Models ({characterForm.selectedModels.length})
+                        </Label>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {getSelectedModelsInfo().map(({ id, config, category }) => (
+                          <Badge key={id} variant="secondary" className="text-sm bg-gradient-to-r from-green-100 to-blue-100 text-green-700 border-green-300 shadow-sm hover:shadow-md transition-all duration-300 px-3 py-1">
+                            <span className="flex items-center gap-2">
+                              {React.createElement(modelCategories[category as keyof typeof modelCategories].icon, { className: "h-4 w-4" })}
+                              {config?.name || id}
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {characterForm.selectedModels.length > 0 && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-5 w-5 text-orange-500" />
+                        <Label className="text-lg font-semibold bg-gradient-to-r from-orange-600 to-purple-600 bg-clip-text text-transparent">
+                          Model Settings
+                        </Label>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {characterForm.selectedModels.map(modelId => {
+                          const allModels = getAllAvailableModels()
+                          const modelConfig = allModels[modelId as keyof typeof allModels]
+                          const settings = characterForm.modelSettings[modelId] || {
+                            temperature: 0.7,
+                            maxTokens: modelConfig?.maxTokens || 2048,
+                            enabled: true
+                          }
+
+                          return (
+                            <Card key={modelId} className="border-0 shadow-xl bg-gradient-to-br from-orange-50/50 to-purple-50/50 dark:from-orange-950/20 dark:to-purple-950/20 hover:shadow-2xl transition-all duration-300">
+                              <CardHeader className="pb-4">
+                                <CardTitle className="text-base flex items-center gap-3">
+                                  {React.createElement(modelCategories[getModelCategory(modelId)].icon, { className: "h-5 w-5 text-orange-500" })}
+                                  <span className="bg-gradient-to-r from-orange-600 to-purple-600 bg-clip-text text-transparent">
+                                    {modelConfig?.name || modelId}
+                                  </span>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-5">
+                                <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/50 dark:bg-gray-800/50">
+                                  <Checkbox
+                                    checked={settings.enabled}
+                                    onCheckedChange={(checked: boolean) => updateModelSetting(modelId, 'enabled', checked)}
+                                    className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                                  />
+                                  <Label className="text-sm font-medium cursor-pointer">Enable this model</Label>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                      Temperature
+                                    </Label>
+                                    <span className="text-sm font-bold text-purple-600 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">
+                                      {settings.temperature}
+                                    </span>
+                                  </div>
+                                  <Slider
+                                    value={[settings.temperature]}
+                                    onValueChange={([value]: number[]) => updateModelSetting(modelId, 'temperature', value)}
+                                    max={2}
+                                    min={0}
+                                    step={0.1}
+                                    className="mt-2"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Controls creativity (0 = focused, 2 = very creative)</p>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                      Max Tokens
+                                    </Label>
+                                    <span className="text-sm font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                                      {settings.maxTokens.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <Slider
+                                    value={[settings.maxTokens]}
+                                    onValueChange={([value]: number[]) => updateModelSetting(modelId, 'maxTokens', value)}
+                                    max={modelConfig?.maxTokens || 8192}
+                                    min={1}
+                                    step={1}
+                                    className="mt-2"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Maximum response length</p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="features" className="space-y-6">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Target className="h-6 w-6 text-green-500" />
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                        Specializations
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Choose the areas where your character excels</p>
+                    </div>
+                  </div>
+
+                  <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50/50 to-blue-50/50 dark:from-green-950/20 dark:to-blue-950/20">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Lightbulb className="h-5 w-5 text-yellow-500" />
+                        Preferred Features
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">Select features this character should excel at. This will help recommend the best models.</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.entries(featureDefinitions).map(([featureId, feature]) => {
+                          const isSelected = characterForm.preferredFeatures.includes(featureId)
+                          return (
+                            <div
+                              key={featureId}
+                              className={`group p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/40 dark:to-blue-900/40 border-green-300 shadow-lg ring-2 ring-green-200'
+                                  : 'bg-white dark:bg-gray-800 border-gray-200 hover:border-purple-300 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 dark:hover:from-purple-950/20 dark:hover:to-blue-950/20 hover:shadow-md'
+                              }`}
+                              onClick={() => toggleFeature(featureId)}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-xl transition-all duration-300 ${
+                                  isSelected
+                                    ? 'bg-green-200 dark:bg-green-800 shadow-lg'
+                                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30'
+                                }`}>
+                                  <Target className={`h-5 w-5 transition-colors duration-300 ${
+                                    isSelected ? 'text-green-700 dark:text-green-300' : 'text-gray-600 group-hover:text-purple-600'
+                                  }`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className={`font-semibold transition-colors duration-300 ${
+                                      isSelected ? 'text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-300'
+                                    }`}>
+                                      {feature.name}
+                                    </h4>
+                                    {isSelected && (
+                                      <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                                    )}
+                                  </div>
+                                  <p className={`text-sm transition-colors duration-300 ${
+                                    isSelected ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground group-hover:text-purple-600'
+                                  }`}>
+                                    {feature.description}
+                                  </p>
+                                </div>
+                                <Checkbox
+                                  id={`edit-feature-${featureId}`}
+                                  checked={isSelected}
+                                  onChange={() => {}} // Handled by card click
+                                  className={`mt-1 transition-all duration-300 ${
+                                    isSelected
+                                      ? 'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500'
+                                      : 'group-hover:border-purple-400'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {getRecommendedModels().length > 0 && (
+                    <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-purple-500" />
+                          Recommended Models
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">Based on your selected features, these models would work best</p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-3">
+                          {getRecommendedModels().map(modelId => {
+                            const allModels = getAllAvailableModels()
+                            const modelConfig = allModels[modelId as keyof typeof allModels]
+                            const category = getModelCategory(modelId)
+                            const IconComponent = modelCategories[category].icon
+                            return (
+                              <Badge key={modelId} variant="secondary" className="text-sm bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-300 shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2">
+                                <span className="flex items-center gap-2">
+                                  <IconComponent className="h-4 w-4" />
+                                  {modelConfig?.name || modelId}
+                                </span>
+                              </Badge>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="flex gap-2 mt-6">
+              <Button onClick={handleUpdateCharacter} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                <Save className="h-4 w-4 mr-2" />
+                Evolve Character
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="hover:bg-muted">
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        </div>
+      </div>      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        {characters.map((character) => {
+          const IconComponent = character.icon
+          const archetype = personalityArchetypes.find(a => a.id === character.archetype)
+          const visualTheme = character.visualTheme || "default"
+
+          return (
+            <Card
+              key={character.id}
+              className={`group cursor-pointer transition-all duration-500 hover:shadow-2xl hover:scale-[1.02] border-0 overflow-hidden relative ${
+                selectedCharacter === character.id
+                  ? "ring-2 ring-purple-500 shadow-2xl scale-[1.02] bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30"
+                  : "hover:shadow-xl bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50"
+              } ${visualTheme !== "default" ? `bg-gradient-to-br ${visualTheme} shadow-lg` : ""}`}
+              onClick={() => onCharacterSelect(character.id)}
+            >
+              {/* Animated background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <CardHeader className="pb-4 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-4 rounded-2xl ${character.color} shadow-xl group-hover:shadow-2xl transition-all duration-300 group-hover:scale-110 relative overflow-hidden`}>
+                      {/* Animated pulse effect */}
+                      <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse" />
+                      <IconComponent className="h-7 w-7 text-white relative z-10 drop-shadow-lg" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300 truncate">
+                        {character.name}
+                      </CardTitle>
+                      <div className="flex gap-2 flex-wrap mt-2">
+                        {character.isCustom ? (
+                          <Badge variant="secondary" className="text-xs bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 border-purple-300 shadow-sm">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            Custom
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 hover:bg-gray-50">
+                            <Star className="h-3 w-3 mr-1" />
+                            Preset
+                          </Badge>
+                        )}
+                        {archetype && (
+                          <Badge variant="outline" className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-300 shadow-sm">
+                            {archetype.name.split(' ')[1] || archetype.name}
+                          </Badge>
+                        )}
+                        {character.evolution && (
+                          <Badge variant="outline" className="text-xs bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-300 shadow-sm">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Lv.{character.evolution.level}
+                          </Badge>
+                        )}
+                        {isAdminMode && !character.isCustom && (
+                          <Badge variant="destructive" className="text-xs shadow-sm">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Admin
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {(character.isCustom || isAdminMode) && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditCharacter(character)
+                        }}
+                        className="hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-colors duration-200"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors duration-200"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Character</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete &quot;{character.name}&quot;? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteCharacter(character.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 relative z-10">
+                <CardDescription className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-300 line-clamp-2">
+                  {character.description}
+                </CardDescription>
+
+                {/* Personality Traits Preview */}
+                {character.personality && (
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Personality DNA</div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(character.personality)
+                        .filter(([, value]) => value > 60)
+                        .slice(0, 3)
+                        .map(([trait, value]) => {
+                          const traitInfo = personalityTraits.find(t => t.id === trait)
+                          const IconComponent = traitInfo?.icon || Sparkles
+                          return (
+                            <Badge key={trait} variant="secondary" className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                              <IconComponent className="h-3 w-3 mr-1" />
+                              {traitInfo?.name.split(' ')[0]}: {value}%
+                            </Badge>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show selected models */}
+                {character.models && character.models.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1">
+                      <Cpu className="h-3 w-3" />
+                      AI Models
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {character.models.slice(0, 3).map(modelId => {
+                        const allModels = getAllAvailableModels()
+                        const modelConfig = allModels[modelId as keyof typeof allModels]
+                        const category = getModelCategory(modelId)
+                        const IconComponent = modelCategories[category].icon
+                        return (
+                          <Badge key={modelId} variant="outline" className="text-xs hover:bg-purple-50 border-gray-300 text-gray-600 hover:border-purple-300 transition-colors duration-200">
+                            <IconComponent className="h-3 w-3 mr-1" />
+                            {modelConfig?.name || modelId}
+                          </Badge>
+                        )
+                      })}
+                      {character.models.length > 3 && (
+                        <Badge variant="outline" className="text-xs border-gray-300 text-gray-500">
+                          <Plus className="h-3 w-3 mr-1" />
+                          +{character.models.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show capabilities */}
+                {character.capabilities && Object.values(character.capabilities).some(Boolean) && (
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
+                      Superpowers
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(character.capabilities)
+                        .filter(([, enabled]) => enabled)
+                        .slice(0, 4)
+                        .map(([capability]) => (
+                          <Badge key={capability} variant="secondary" className="text-xs bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 shadow-sm hover:shadow-md transition-shadow duration-200 animate-pulse">
+                            {capability.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                          </Badge>
+                        ))}
+                      {Object.values(character.capabilities).filter(Boolean).length > 4 && (
+                        <Badge variant="secondary" className="text-xs bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200">
+                          <Plus className="h-3 w-3 mr-1" />
+                          +{Object.values(character.capabilities).filter(Boolean).length - 4} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Evolution Progress */}
+                {character.evolution && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground font-semibold uppercase tracking-wide">Evolution</span>
+                      <span className="font-bold text-purple-600">{character.evolution.experience} XP</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden shadow-inner relative">
+                      <div
+                        className={`bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 h-3 rounded-full transition-all duration-1000 ease-out shadow-sm evolution-progress-bar`}
+                        data-width={Math.min((character.evolution.experience / 1000) * 100, 100)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3 w-3" />
+                    Created {new Date(character.createdAt || Date.now()).toLocaleDateString()}
+                  </span>
+                  {character.updatedAt && (
+                    <span className="flex items-center gap-1">
+                      <Edit className="h-3 w-3" />
+                      Updated {new Date(character.updatedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

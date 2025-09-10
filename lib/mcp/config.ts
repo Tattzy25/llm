@@ -68,45 +68,13 @@ export const MCP_SETTINGS = {
   HEALTH_CHECK_INTERVAL: 30000,
   DEFAULT_TIMEOUT: 30000,
   ENABLE_AUTO_RECONNECT: true,
-  ENABLE_HEALTH_CHECKS: true
+  ENABLE_HEALTH_CHECKS: false
 }
 
-// Environment detection
-export const isProduction = process.env.NODE_ENV === 'production'
-export const isDevelopment = process.env.NODE_ENV === 'development'
-
-// Dynamic configuration based on environment
-export const getMCPConfig = () => {
-  return {
-    ...MCP_CONFIG,
-    // Override with localhost in development if no env vars set
-    ...(isDevelopment && !process.env.MCP_REMOTE_SERVER_URL && {
-      REMOTE_SERVER: {
-        ...MCP_CONFIG.REMOTE_SERVER,
-        endpoint: 'ws://localhost:3001',
-        httpUrl: 'http://localhost:3001'
-      },
-      WEB_SCRAPER: {
-        ...MCP_CONFIG.WEB_SCRAPER,
-  // Route through Server Manager WS proxy to the desktop/web-scraper server
-  endpoint: 'ws://localhost:8000/ws/desktop',
-  httpUrl: 'http://localhost:8000'
-      },
-      DATABASE: {
-        ...MCP_CONFIG.DATABASE,
-  endpoint: 'ws://localhost:8000/ws/database',
-  httpUrl: 'http://localhost:8000'
-      },
-      AI_ASSISTANT: {
-        ...MCP_CONFIG.AI_ASSISTANT,
-  endpoint: 'ws://localhost:8000/ws/ai_assistant',
-  httpUrl: 'http://localhost:8000'
-      },
-      SERVER_MANAGER: {
-        ...MCP_CONFIG.SERVER_MANAGER,
-  endpoint: 'ws://localhost:8000',
-  httpUrl: 'http://localhost:8000'
-      }
-    })
-  }
+/**
+ * Get MCP configuration
+ * Returns the complete MCP server configuration object
+ */
+export function getMCPConfig() {
+  return MCP_CONFIG
 }

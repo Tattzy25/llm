@@ -20,12 +20,46 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
   const [isRecording, setIsRecording] = React.useState(false)
 
   // Settings state
-  const [selectedModel, setSelectedModel] = React.useState(modelOverride || process.env.NEXT_PUBLIC_DEFAULT_MODEL || "gpt-4")
+  const [selectedModel, setSelectedModel] = React.useState(modelOverride || process.env.NEXT_PUBLIC_DEFAULT_MODEL || "gpt-4o-mini")
   const [selectedCharacter, setSelectedCharacter] = React.useState(characterOverride || "assistant")
   const [mode, setMode] = React.useState<"local" | "remote">("remote")
   const [temperature, setTemperature] = React.useState([parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || "0.7")])
   const [maxTokens, setMaxTokens] = React.useState([parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || "4096")])
   const [apiKey, setApiKey] = React.useState("")
+
+  // Load API key from environment or localStorage
+  React.useEffect(() => {
+    const loadApiKey = () => {
+      // Try to get from environment variables first
+      const envKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY
+      
+      // If not in env, try localStorage (from env vars page)
+      if (!envKey) {
+        const storedEnvVars = localStorage.getItem(`env-vars-${getCurrentUserId()}`)
+        if (storedEnvVars) {
+          const envVars = JSON.parse(storedEnvVars)
+          const openaiKey = envVars.find((v: any) => v.key === 'OPENAI_API_KEY')
+          if (openaiKey && openaiKey.value && !openaiKey.value.startsWith('your_')) {
+            setApiKey(openaiKey.value)
+            return
+          }
+        }
+      }
+      
+      // Fallback to env var
+      if (envKey && !envKey.startsWith('your_')) {
+        setApiKey(envKey)
+      }
+    }
+    
+    loadApiKey()
+  }, [])
+
+  // Helper function to get current user ID
+  const getCurrentUserId = () => {
+    // Replace with your actual user ID logic
+    return 'user-123'
+  }
 
   // Initialize chat service
   const chatService = React.useMemo(() => new ChatService({
@@ -33,7 +67,8 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
     temperature: temperature[0],
     maxTokens: maxTokens[0],
     apiKey: apiKey,
-    character: selectedCharacter
+    character: selectedCharacter,
+    stream: true // Enable streaming for real-time responses
   }), [selectedModel, temperature, maxTokens, apiKey, selectedCharacter])
 
   // Event handlers
@@ -62,7 +97,7 @@ export function PartyLine({ characterOverride, modelOverride, compact = false }:
 
       setMessages(prev => [...prev, assistantMessage])
 
-      await chatService.sendMessage(input, (chunk) => {
+      await chatService.sendMessage(input, (chunk: string) => {
         assistantContent += chunk
         setMessages(prev => prev.map(msg =>
           msg.id === assistantMessage.id

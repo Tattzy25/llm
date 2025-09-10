@@ -166,8 +166,18 @@ export const buildApiRequest = (
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'User-Agent': 'DigitalHustleLab-LLM/1.0.0',
-    ...options?.headers
+    'User-Agent': 'DigitalHustleLab-LLM/1.0.0'
+  }
+
+  // Merge additional headers if provided
+  if (options?.headers) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        headers[key] = value
+      })
+    } else if (typeof options.headers === 'object') {
+      Object.assign(headers, options.headers)
+    }
   }
 
   // Set the appropriate auth header

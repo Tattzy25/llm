@@ -163,8 +163,8 @@ export const isSecureEnvironment = (): boolean => {
   // Check if HTTPS is enabled in production
   if (process.env.NODE_ENV === 'production') {
     return process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0' && 
-           (process.env.VERCEL_URL?.startsWith('https://') || 
-            process.env.NEXTAUTH_URL?.startsWith('https://'))
+           ((process.env.VERCEL_URL?.startsWith('https://') ?? false) || 
+            (process.env.NEXTAUTH_URL?.startsWith('https://') ?? false))
   }
   return true // Allow in development
 }

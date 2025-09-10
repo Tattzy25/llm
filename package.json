@@ -9,7 +9,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "preinstall": "node -e \"const p=process.env.npm_execpath||'';if(!p.includes('pnpm')){console.error('This repo uses pnpm. Install with: corepack enable && pnpm i');process.exit(1)}\"",
     "dev": "next dev",
     "dev-prod": "NODE_ENV=production next dev",
     "dev-turbo": "next dev --turbopack",
@@ -48,6 +47,7 @@
     "react": "19.1.0",
     "react-avatar": "^5.0.4",
     "react-dom": "19.1.0",
+    "styled-components": "^6.1.19",
     "tailwind-merge": "^3.3.1",
     "ws": "^8.18.3"
   },

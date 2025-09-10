@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Settings, Plus, Copy, Trash2, Eye, EyeOff, Upload, Search } from "lucide-react"
+import { Settings, Plus, Copy, Trash2, Eye, EyeOff, Upload, Search, Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,27 +18,30 @@ interface EnvironmentVariable {
   updatedAt: Date
 }
 
+interface PendingVariable {
+  id: string
+  key: string
+  value: string
+  isSensitive: boolean
+}
+
 export function EnvironmentVariables() {
   const { showSuccess, showError, showWarning } = useNotifications()
-  const [envVars, setEnvVars] = React.useState<EnvironmentVariable[]>([
-    {
-      id: "1",
-      key: "OPENAI_API_KEY",
-      value: "sk-1234567890abcdef1234567890abcdef",
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    },
-    {
-      id: "2", 
-      key: "ANTHROPIC_API_KEY",
-      value: "sk-ant-1234567890abcdef1234567890abcdef",
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  
+  // Load saved variables from localStorage
+  const [envVars, setEnvVars] = React.useState<EnvironmentVariable[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('environment-variables')
+      return saved ? JSON.parse(saved) : []
     }
+    return []
+  })
+  
+  // State for multiple pending variables
+  const [pendingVars, setPendingVars] = React.useState<PendingVariable[]>([
+    { id: '1', key: '', value: '', isSensitive: false }
   ])
   
-  const [newKey, setNewKey] = React.useState("")
-  const [newValue, setNewValue] = React.useState("")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editKey, setEditKey] = React.useState("")
   const [editValue, setEditValue] = React.useState("")
@@ -46,34 +49,100 @@ export function EnvironmentVariables() {
   const [visibleValues, setVisibleValues] = React.useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = React.useState("")
 
+  // Save to localStorage whenever envVars changes
+  React.useEffect(() => {
+    localStorage.setItem('environment-variables', JSON.stringify(envVars))
+  }, [envVars])
+
   const filteredEnvVars = envVars.filter(envVar => 
     envVar.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
     envVar.value.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleAddVariable = () => {
-    if (!newKey.trim() || !newValue.trim()) {
-      showError('Please enter both key and value', 'Missing required fields')
+  // Add a new input row
+  const handleAddVariableRow = () => {
+    const newId = Date.now().toString()
+    setPendingVars(prev => [...prev, { id: newId, key: '', value: '', isSensitive: false }])
+  }
+
+  // Remove a pending variable row
+  const handleRemoveVariableRow = (id: string) => {
+    if (pendingVars.length > 1) {
+      setPendingVars(prev => prev.filter(v => v.id !== id))
+    }
+  }
+
+  // Update a pending variable
+  const handleUpdatePendingVar = (id: string, field: 'key' | 'value' | 'isSensitive', value: string | boolean) => {
+    setPendingVars(prev => prev.map(v => 
+      v.id === id ? { ...v, [field]: value } : v
+    ))
+  }
+
+  // Save all pending variables
+  const handleSaveAllVariables = () => {
+    const validVars: EnvironmentVariable[] = []
+    const errors: string[] = []
+
+    pendingVars.forEach((pending, index) => {
+      const key = pending.key.trim()
+      const value = pending.value.trim()
+
+      // Validation
+      if (!key) {
+        errors.push(`Row ${index + 1}: Key is required`)
+        return
+      }
+
+      if (!value) {
+        errors.push(`Row ${index + 1}: Value is required`)
+        return
+      }
+
+      // Check for valid key format
+      if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
+        errors.push(`Row ${index + 1}: Key must be uppercase letters, numbers, and underscores only`)
+        return
+      }
+
+      // Check for duplicate keys
+      if (envVars.some(v => v.key === key) || validVars.some(v => v.key === key)) {
+        errors.push(`Row ${index + 1}: Key "${key}" already exists`)
+        return
+      }
+
+      // For API keys, validate format
+      if (key.includes('API_KEY') && !value.startsWith('sk-') && !value.startsWith('pk-') && !value.startsWith('Bearer ')) {
+        errors.push(`Row ${index + 1}: API key format is invalid`)
+        return
+      }
+
+      validVars.push({
+        id: Date.now().toString() + index,
+        key,
+        value,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+    })
+
+    if (errors.length > 0) {
+      showError('Validation Errors', errors.join('\n'))
       return
     }
 
-    if (envVars.some(v => v.key === newKey.trim())) {
-      showError('Key already exists', 'Please choose a different name')
+    if (validVars.length === 0) {
+      showWarning('No valid variables to save', 'Please fill in the required fields')
       return
     }
 
-    const newVar: EnvironmentVariable = {
-      id: Date.now().toString(),
-      key: newKey.trim(),
-      value: newValue.trim(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-
-    setEnvVars(prev => [...prev, newVar])
-    setNewKey("")
-    setNewValue("")
-    showSuccess('Environment variable added successfully', `"${newVar.key}" is now available`)
+    // Save all valid variables
+    setEnvVars(prev => [...prev, ...validVars])
+    
+    // Reset pending variables to one empty row
+    setPendingVars([{ id: Date.now().toString(), key: '', value: '', isSensitive: false }])
+    
+    showSuccess(`${validVars.length} environment variable(s) saved successfully`, 'Variables are now available')
   }
 
   const handleEditVariable = (id: string) => {
@@ -91,6 +160,11 @@ export function EnvironmentVariables() {
       return
     }
 
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(editKey.trim())) {
+      showError('Invalid key format', 'Key must be uppercase letters, numbers, and underscores only')
+      return
+    }
+
     setEnvVars(prev => prev.map(v => 
       v.id === editingId 
         ? { ...v, key: editKey.trim(), value: editValue.trim(), updatedAt: new Date() }
@@ -100,7 +174,7 @@ export function EnvironmentVariables() {
     setEditingId(null)
     setEditKey("")
     setEditValue("")
-    showSuccess('Environment variable updated successfully', 'Changes saved')
+    showSuccess('Environment variable updated successfully', `"${editKey.trim()}" has been updated`)
   }
 
   const handleCancelEdit = () => {
@@ -110,49 +184,35 @@ export function EnvironmentVariables() {
   }
 
   const handleDeleteVariable = (id: string) => {
-    const varToDelete = envVars.find(v => v.id === id)
+    const envVar = envVars.find(v => v.id === id)
     setEnvVars(prev => prev.filter(v => v.id !== id))
-    showSuccess('Environment variable deleted successfully', varToDelete ? `"${varToDelete.key}" has been removed` : 'Variable removed')
+    showSuccess('Environment variable deleted successfully', `"${envVar?.key}" has been removed`)
   }
 
-  const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text)
-    showSuccess(`${type} copied to clipboard`, 'Ready to paste')
-    
-    // Auto-hide after copying
-    setTimeout(() => {
-      setVisibleValues(prev => {
-        const newSet = new Set(prev)
-        const envVar = envVars.find(v => v.key === text || v.value === text)
-        if (envVar) newSet.delete(envVar.id)
-        return newSet
-      })
-    }, 2000)
-  }
-
-  const toggleValueVisibility = (varId: string) => {
+  const toggleValueVisibility = (id: string) => {
     setVisibleValues(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(varId)) {
-        newSet.delete(varId)
+      if (newSet.has(id)) {
+        newSet.delete(id)
       } else {
-        newSet.add(varId)
-        // Auto-hide after 3 seconds
-        setTimeout(() => {
-          setVisibleValues(current => {
-            const updated = new Set(current)
-            updated.delete(varId)
-            return updated
-          })
-        }, 3000)
+        newSet.add(id)
       }
       return newSet
     })
   }
 
-  const maskedValue = (value: string) => {
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showSuccess(`${type} copied to clipboard`, 'Ready to paste')
+    } catch (error) {
+      showError('Failed to copy to clipboard', 'Please try again')
+    }
+  }
+
+  const maskValue = (value: string) => {
     if (value.length <= 8) return '••••••••'
-    return value.substring(0, 4) + '••••••••••••••••' + value.substring(value.length - 4)
+    return value.substring(0, 4) + '••••' + value.substring(value.length - 4)
   }
 
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,40 +291,59 @@ export function EnvironmentVariables() {
         </CardContent>
       </Card>
 
-      {/* Add New Variable */}
+      {/* Add New Variables */}
       <Card>
         <CardHeader>
-          <CardTitle>Add Environment Variable</CardTitle>
+          <CardTitle>Add Environment Variables</CardTitle>
           <CardDescription>
-            Add a new key-value pair to your environment
+            Add multiple key-value pairs. Click "Add Row" to add more input fields.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="newKey">Key</Label>
-              <Input
-                id="newKey"
-                placeholder="e.g., API_KEY"
-                value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-              />
+          {pendingVars.map((pending, index) => (
+            <div key={pending.id} className="flex items-end gap-2 p-4 border rounded-lg">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor={`key-${pending.id}`}>Key</Label>
+                  <Input
+                    id={`key-${pending.id}`}
+                    placeholder="e.g., API_KEY"
+                    value={pending.key}
+                    onChange={(e) => handleUpdatePendingVar(pending.id, 'key', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`value-${pending.id}`}>Value</Label>
+                  <Input
+                    id={`value-${pending.id}`}
+                    placeholder="e.g., your-api-key-here"
+                    value={pending.value}
+                    onChange={(e) => handleUpdatePendingVar(pending.id, 'value', e.target.value)}
+                    type={isSensitive ? "password" : "text"}
+                  />
+                </div>
+              </div>
+              {pendingVars.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRemoveVariableRow(pending.id)}
+                  className="mb-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            <div>
-              <Label htmlFor="newValue">Value</Label>
-              <Input
-                id="newValue"
-                placeholder="e.g., your-api-key-here"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-                type={isSensitive ? "password" : "text"}
-              />
-            </div>
-          </div>
+          ))}
+          
           <div className="flex gap-2">
-            <Button onClick={handleAddVariable}>
+            <Button onClick={handleAddVariableRow} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
-              Add Variable
+              Add Row
+            </Button>
+            <Button onClick={handleSaveAllVariables}>
+              <Save className="h-4 w-4 mr-2" />
+              Save All Variables
             </Button>
             <div className="relative">
               <input
@@ -281,9 +360,6 @@ export function EnvironmentVariables() {
                 </label>
               </Button>
             </div>
-            <Button variant="outline">
-              Save
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -342,7 +418,7 @@ export function EnvironmentVariables() {
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="text-sm text-muted-foreground font-mono">
-                          {visibleValues.has(envVar.id) || !isSensitive ? envVar.value : maskedValue(envVar.value)}
+                          {visibleValues.has(envVar.id) || !isSensitive ? envVar.value : maskValue(envVar.value)}
                         </code>
                         {isSensitive && (
                           <Button
@@ -370,62 +446,52 @@ export function EnvironmentVariables() {
                     </>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-muted-foreground">
-                    Updated {envVar.updatedAt.toLocaleDateString()}
-                  </div>
+                <div className="flex items-center gap-2 ml-4">
                   {editingId === envVar.id ? (
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={handleSaveEdit}>
+                    <>
+                      <Button size="sm" onClick={handleSaveEdit}>
                         Save
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                      <Button size="sm" variant="outline" onClick={handleCancelEdit}>
                         Cancel
                       </Button>
-                    </div>
+                    </>
                   ) : (
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleEditVariable(envVar.id)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Settings className="h-3 w-3" />
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => handleEditVariable(envVar.id)}>
+                        Edit
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
+                          <Button size="sm" variant="outline">
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Environment Variable</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete &quot;{envVar.key}&quot;? This action cannot be undone.
+                              Are you sure you want to delete "{envVar.key}"? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteVariable(envVar.id)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
+                            <AlertDialogAction onClick={() => handleDeleteVariable(envVar.id)}>
                               Delete
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
             ))}
+            {filteredEnvVars.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No environment variables found. Add some above to get started.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

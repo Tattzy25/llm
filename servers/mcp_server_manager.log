@@ -4,3 +4,9 @@
 2025-09-09 09:12:46,880 - __main__ - ERROR - Health check error: cannot access local variable 'asyncio' where it is not associated with a value
 2025-09-09 09:13:26,225 - __main__ - INFO - Received shutdown signal
 2025-09-09 09:13:26,229 - __main__ - ERROR - Fatal error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-09-10 05:04:50,940 - __main__ - ERROR - Failed to start desktop: No module named 'servers'
+2025-09-10 05:04:50,946 - __main__ - ERROR - Failed to start ai_assistant: No module named 'servers'
+2025-09-10 05:04:50,952 - __main__ - ERROR - Failed to start database: No module named 'servers'
+2025-09-10 05:04:51,698 - __main__ - ERROR - Health check error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-09-10 05:05:29,964 - __main__ - INFO - Received shutdown signal
+2025-09-10 05:05:29,965 - __main__ - ERROR - Fatal error: cannot access local variable 'asyncio' where it is not associated with a value

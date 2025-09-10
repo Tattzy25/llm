@@ -30,6 +30,10 @@ const NotificationContext = React.createContext<NotificationContextType | undefi
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = React.useState<Notification[]>([])
 
+  const removeNotification = React.useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }, [])
+
   const addNotification = React.useCallback((notification: Omit<Notification, 'id' | 'timestamp'>) => {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
     const newNotification: Notification = {
@@ -42,16 +46,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications(prev => [...prev, newNotification])
 
     // Auto remove after duration
-    if (newNotification.duration > 0) {
+    if (newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => {
         removeNotification(id)
       }, newNotification.duration)
     }
-  }, [])
-
-  const removeNotification = React.useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
-  }, [])
+  }, [removeNotification])
 
   const showSuccess = React.useCallback((title: string, message?: string) => {
     addNotification({ type: 'success', title, message })

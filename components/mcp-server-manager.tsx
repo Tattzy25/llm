@@ -85,12 +85,12 @@ export function MCPServerManager() {
 
     try {
       // Make actual HTTP request to start the server
-    const baseUrl = process.env.NEXT_PUBLIC_MCP_SERVER_MANAGER_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/servers/${serverId}/start`, {
+      const baseUrl = process.env.NEXT_PUBLIC_MCP_SERVER_MANAGER_URL || 'http://localhost:3000'
+      const response = await fetch(`${baseUrl}/servers/${serverId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-      // Auth bypassed for now; when enabled, inject a short-lived JWT via server route, not client env
+          // Auth bypassed for now; when enabled, inject a short-lived JWT via server route, not client env
         },
         body: JSON.stringify({
           port: server.port,
@@ -108,10 +108,10 @@ export function MCPServerManager() {
       setServers(prev => prev.map(s =>
         s.id === serverId
           ? {
-              ...s,
-              status: 'running' as const,
-              endpoint: result.endpoint || `ws://localhost:${server.port}`
-            }
+            ...s,
+            status: 'running' as const,
+            endpoint: result.endpoint || `ws://localhost:${server.port}`
+          }
           : s
       ));
     } catch (error) {
@@ -317,17 +317,16 @@ export function MCPServerManager() {
               {servers.map((server) => (
                 <div key={server.id} className="flex items-center gap-2">
                   <span className="text-muted-foreground">[{new Date().toLocaleTimeString()}]</span>
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    server.status === 'running' ? 'bg-green-100 text-green-800' :
+                  <span className={`px-2 py-1 rounded text-xs ${server.status === 'running' ? 'bg-green-100 text-green-800' :
                     server.status === 'starting' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                     {server.name}
                   </span>
                   <span>
                     {server.status === 'running' ? 'Server started successfully' :
-                     server.status === 'starting' ? 'Starting server...' :
-                     'Server stopped'}
+                      server.status === 'starting' ? 'Starting server...' :
+                        'Server stopped'}
                   </span>
                 </div>
               ))}
