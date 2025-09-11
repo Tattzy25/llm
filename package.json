@@ -5,7 +5,7 @@
   "description": "Digital Hustle Lab - LLM Application with MCP Server Ecosystem (digitalhustlelab.com)",
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "pnpm": ">=6",
+    "pnpm": ">=9",
     "node": ">=18"
   },
   "scripts": {
@@ -39,6 +39,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/supabase-js": "^2.57.4",
     "@upstash/redis": "^1.35.3",
+    "@vercel/blob": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.542.0",
@@ -49,12 +50,12 @@
     "react-dom": "19.1.0",
     "styled-components": "^6.1.19",
     "tailwind-merge": "^3.3.1",
-    "ws": "^8.18.3",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@babel/core": "^7.22.0",
-    "@babel/eslint-parser": "^7.28.4",
+    "@babel/eslint-parser": "^7.25.0",
     "@eslint/eslintrc": "^3",
     "@next/eslint-plugin-next": "^15.5.2",
     "@playwright/test": "^1.55.0",
@@ -62,6 +63,7 @@
     "@types/node": "^20.19.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^8.3.4",
     "@types/ws": "^8.18.1",
     "cross-env": "^10.0.0",
     "eslint": "^8",
@@ -71,7 +73,6 @@
     "playwright": "^1.55.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.8",
-    "typescript": "^5",
-    "@types/uuid": "^8.3.4"
+    "typescript": "^5"
   }
 }
