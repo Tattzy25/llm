@@ -3,10 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Digital Hustle Lab - LLM Application with MCP Server Ecosystem (digitalhustlelab.com)",
-  "packageManager": "pnpm@9.0.0",
   "engines": {
-    "pnpm": ">=9",
-    "node": ">=18"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "next dev",
