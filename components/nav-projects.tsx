@@ -70,16 +70,15 @@ export function NavProjects({
                     {item.items.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
                         <SidebarMenuSubButton asChild>
-                          <button 
+                          <button
                             onClick={() => {
-                              if (onViewChange) {
-                                if (subItem.title === "API Keys") {
-                                  onViewChange("api-keys")
-                                } else if (subItem.title === "Environment Variables") {
-                                  onViewChange("env-vars")
-                                } else if (subItem.title === "Robots") {
-                                  onViewChange("control-panel-robots")
-                                }
+                              if (!onViewChange) return;
+                              switch (subItem.title) {
+                                case 'API Keys': return onViewChange('api-keys');
+                                case 'Environment Variables': return onViewChange('env-vars');
+                                case 'Robots': return onViewChange('control-panel-robots');
+                                case 'Image Converter': return onViewChange('image-converter');
+                                default: return;
                               }
                             }}
                             className="w-full text-left"

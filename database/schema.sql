@@ -64,6 +64,20 @@ CREATE TABLE custom_models (
   CONSTRAINT model_endpoint_format CHECK (api_endpoint ~ '^https?://')
 );
 
+-- Image Slugs table for branded image URLs
+CREATE TABLE image_slugs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  slug TEXT NOT NULL UNIQUE,
+  storage_key TEXT NOT NULL,
+  bucket_name TEXT NOT NULL DEFAULT 'image_convert',
+  content_type TEXT,
+  file_size INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT slug_format CHECK (slug ~ '^[a-z0-9-]+$' AND char_length(slug) >= 1 AND char_length(slug) <= 100),
+  CONSTRAINT storage_key_format CHECK (char_length(storage_key) >= 1 AND char_length(storage_key) <= 500)
+);
+
 -- Row Level Security Policies
 
 -- API Keys policies
@@ -86,6 +100,11 @@ ALTER TABLE custom_models ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own models" ON custom_models
   FOR ALL USING (auth.uid() = user_id);
 
+-- Image Slugs policies (public access for branded URLs)
+ALTER TABLE image_slugs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read access for image slugs" ON image_slugs
+  FOR SELECT USING (true);
+
 -- Triggers for updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -100,6 +119,11 @@ CREATE TRIGGER update_environment_variables_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_image_slugs_updated_at
+  BEFORE UPDATE ON image_slugs
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Indexes for performance
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_hashed_key ON api_keys(hashed_key);
@@ -109,12 +133,15 @@ CREATE INDEX idx_characters_user_id ON custom_characters(user_id);
 CREATE INDEX idx_characters_active ON custom_characters(user_id, is_active);
 CREATE INDEX idx_models_user_id ON custom_models(user_id);
 CREATE INDEX idx_models_active ON custom_models(user_id, is_active);
+CREATE INDEX idx_image_slugs_slug ON image_slugs(slug);
+CREATE INDEX idx_image_slugs_storage_key ON image_slugs(storage_key);
 
 -- Comments for documentation
 COMMENT ON TABLE api_keys IS 'User-generated API keys for external service authentication';
 COMMENT ON TABLE environment_variables IS 'User environment variables for configuration';
 COMMENT ON TABLE custom_characters IS 'User-defined AI characters with personalities and prompts';
 COMMENT ON TABLE custom_models IS 'User-defined custom AI models and endpoints';
+COMMENT ON TABLE image_slugs IS 'Mapping of human-readable slugs to Supabase storage keys for branded image URLs';
 
 COMMENT ON COLUMN api_keys.hashed_key IS 'SHA-256 hashed version of the actual API key';
 COMMENT ON COLUMN api_keys.masked_key IS 'Display version showing only first 8 and last 4 characters';

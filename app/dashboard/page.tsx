@@ -26,17 +26,19 @@ import { MCPControlPanel } from "@/components/mcp-control-panel"
 import { ApiKeys } from "@/components/api-keys"
 import { EnvironmentVariables } from "@/components/environment-variables"
 import { ControlPanelRobots } from "@/components/control-panel-robots"
+import ImageConverter from "@/components/image-converter"
 import { useState } from "react"
 import Image from "next/image"
 
 export default function Page() {
-  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars" | "control-panel-robots">("dashboard")
+  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars" | "control-panel-robots" | "image-converter">("dashboard")
   const [selectedCharacter, setSelectedCharacter] = useState("assistant")
   const [selectedModel, setSelectedModel] = useState("gpt-4")
 
   const handleViewChange = (view: string) => {
-    if (view === "partyline" || view === "dashboard" || view === "characters" || view === "models" || view === "mcp" || view === "mcp-servers" || view === "mcp-tools" || view === "mcp-control" || view === "api-keys" || view === "env-vars" || view === "control-panel-robots") {
-      setActiveView(view)
+  const allowed = ["dashboard","partyline","characters","models","mcp","mcp-servers","mcp-tools","mcp-control","api-keys","env-vars","control-panel-robots","image-converter"] as const
+    if (allowed.includes(view as any)) {
+      setActiveView(view as typeof activeView)
       console.log("🔄 Switching to view:", view)
     }
   }
@@ -135,6 +137,10 @@ export default function Page() {
         ) : activeView === "control-panel-robots" ? (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             <ControlPanelRobots />
+          </div>
+        ) : activeView === "image-converter" ? (
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <ImageConverter />
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

@@ -60,6 +60,17 @@ export interface CustomModel {
   is_active: boolean
 }
 
+export interface ImageSlug {
+  id: string
+  slug: string
+  storage_key: string
+  bucket_name: string
+  content_type?: string
+  file_size?: number
+  created_at: Date
+  updated_at: Date
+}
+
 // API Keys Database Operations
 export const apiKeysDB = {
   async create(apiKey: Omit<ApiKeyRecord, 'id' | 'created_at'>) {
@@ -262,6 +273,70 @@ export const modelsDB = {
       .update({ is_active: false })
       .eq('id', id)
       .eq('user_id', userId)
+    
+    if (error) throw error
+  }
+}
+
+// Image Slugs Database Operations
+export const imageSlugsDB = {
+  async create(slugData: Omit<ImageSlug, 'id' | 'created_at' | 'updated_at'>) {
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('image_slugs')
+      .insert({
+        ...slugData,
+        created_at: now,
+        updated_at: now
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getBySlug(slug: string) {
+    const { data, error } = await supabase
+      .from('image_slugs')
+      .select('*')
+      .eq('slug', slug)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getAll() {
+    const { data, error } = await supabase
+      .from('image_slugs')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async update(slug: string, updates: Partial<ImageSlug>) {
+    const { data, error } = await supabase
+      .from('image_slugs')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('slug', slug)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async delete(slug: string) {
+    const { error } = await supabase
+      .from('image_slugs')
+      .delete()
+      .eq('slug', slug)
     
     if (error) throw error
   }

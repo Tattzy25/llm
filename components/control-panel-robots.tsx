@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-inline-styles */
 "use client"
 
 import React, { useState } from 'react'
@@ -9,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Save, Plus, Eye, RotateCcw, Upload, ImageIcon, Check } from 'lucide-react'
+import FontSelector from './font-selector'
+// import ImageUploader from './image-uploader'  // removed custom uploader
 
 // Robot images you provided - converted to objects for better UI
 const ROBOT_IMAGES = [
@@ -117,6 +120,8 @@ interface ModelCardData {
   customImageUrl?: string
   status: 'Available' | 'Busy' | 'Offline'
   usageCount: number
+  providerIconUrl?: string
+  fontFamily?: string
 }
 
 interface ModelCardPreviewProps {
@@ -143,7 +148,7 @@ function ModelCardPreview({ data, isFlipped, onFlip }: ModelCardPreviewProps) {
   }
 
   return (
-    <div className="relative flex w-80 flex-col rounded-xl bg-gradient-to-br from-white to-gray-50 bg-clip-border text-gray-700 transition-all duration-300 hover:-translate-y-2 shadow-[0_10px_30px_rgba(249,115,22,0.3),0_0_0_1px_rgba(249,115,22,0.1)] hover:shadow-[0_15px_40px_rgba(249,115,22,0.4),0_0_0_1px_rgba(249,115,22,0.2)]">
+  <div className="relative flex w-80 flex-col rounded-xl bg-gradient-to-br from-white via-gray-50 to-gray-100 bg-clip-border text-gray-700 transition-all duration-300 hover:-translate-y-2 shadow-[0_10px_30px_rgba(249,115,22,0.3),0_0_0_1px_rgba(249,115,22,0.1)] hover:shadow-[0_15px_40px_rgba(249,115,22,0.4),0_0_0_1px_rgba(249,115,22,0.2)] bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.02),rgba(255,255,255,0.02)10px,transparent 10px,transparent 20px)]">
       {/* Card Header with Robot Image */}
       <div className="relative mx-4 -mt-6 h-48 overflow-hidden rounded-xl bg-clip-border shadow-lg group">
         <div className="absolute inset-0 bg-gradient-to-r from-orange-600 via-orange-500 to-red-600 opacity-90" />
@@ -186,13 +191,19 @@ function ModelCardPreview({ data, isFlipped, onFlip }: ModelCardPreviewProps) {
         {!isFlipped ? (
           // Front View
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h5 className="block font-mono text-xl font-bold leading-snug tracking-normal text-gray-900 antialiased group-hover:text-orange-600 transition-colors duration-300">
-                {data.name || "Model Name"}
-              </h5>
-              <Badge variant="outline" className="font-semibold">{data.provider || "Provider"}</Badge>
-            </div>
-            <p className="block font-sans text-base font-light leading-relaxed text-gray-700 antialiased mb-3 h-12 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-inline-styles */}
+            <h5
+              style={data.fontFamily ? { fontFamily: data.fontFamily } : undefined}
+              className="block text-xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent antialiased group-hover:text-orange-600 transition-colors duration-300"
+            >
+              {data.name || "Model Name"}
+            </h5>
+            <Badge variant="outline" className="font-semibold">{data.provider || "Provider"}</Badge>
+            {/* eslint-disable-next-line @next/next/no-inline-styles */}
+            <p
+              style={data.fontFamily ? { fontFamily: data.fontFamily } : undefined}
+              className="block text-base leading-relaxed text-gray-700 antialiased mb-3 h-12 overflow-hidden drop-shadow-md"
+            >
               {truncatedDescription || "Model description goes here..."}
             </p>
             <div className="flex items-center gap-2 text-sm text-gray-600 font-mono">
@@ -239,15 +250,15 @@ function ModelCardPreview({ data, isFlipped, onFlip }: ModelCardPreviewProps) {
       {/* Card Actions */}
       <div className="p-6 pt-0">
         <div className="flex gap-2">
-            <Button 
-            onClick={onFlip}
-            variant="outline"
-            size="sm"
-            className="flex-1 font-semibold shadow-[0_4px_12px_rgba(249,115,22,0.2)] hover:shadow-[0_6px_16px_rgba(249,115,22,0.3)]"
-          >
-            <RotateCcw className="w-4 h-4 mr-1" />
-            {isFlipped ? "Front" : "Details"}
-          </Button>
+            <Button
+              onClick={onFlip}
+              variant="outline"
+              size="sm"
+              className="flex-1 font-semibold border-2 border-orange-500 text-orange-600 hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-50"
+            >
+              <RotateCcw className="w-4 h-4 mr-1 text-orange-600" />
+              {isFlipped ? "Front" : "Details"}
+            </Button>
           <Button 
             size="sm"
             className="flex-1 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 font-semibold shadow-[0_6px_20px_rgba(249,115,22,0.4)] hover:shadow-[0_8px_25px_rgba(249,115,22,0.5)]"
@@ -273,7 +284,9 @@ export function ControlPanelRobots() {
     responseTime: '2.3s',
     imageUrl: ROBOT_IMAGES[0].url,
     status: 'Available',
-    usageCount: 0
+    usageCount: 0,
+    fontFamily: '',
+    providerIconUrl: ''
   })
 
   const handleInputChange = (field: keyof ModelCardData, value: string | number) => {
@@ -300,12 +313,14 @@ export function ControlPanelRobots() {
       responseTime: '2.3s',
       imageUrl: ROBOT_IMAGES[0].url,
       status: 'Available',
-      usageCount: 0
+      usageCount: 0,
+      fontFamily: '',
+      providerIconUrl: ''
     })
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Robot Model Management</h1>
@@ -326,8 +341,8 @@ export function ControlPanelRobots() {
               Fill in the details for your AI model card. Changes will be reflected in the preview.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="name">Model Name</Label>
                 <Input
@@ -370,7 +385,7 @@ export function ControlPanelRobots() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {/* Enhanced Model Type Selector */}
               <div className="space-y-2">
                 <Label htmlFor="modelType" className="font-semibold">Model Type</Label>
@@ -406,7 +421,7 @@ export function ControlPanelRobots() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="contextWindow">Context Window</Label>
                 <Input
@@ -428,8 +443,8 @@ export function ControlPanelRobots() {
             </div>
 
             {/* Robot Image Selector - Thumbnail Grid */}
-            <div className="space-y-2">
-              <Label htmlFor="imageUrl" className="font-semibold">Robot Avatar</Label>
+            <div className="space-y-1">
+              <Label className="font-semibold">Robot Avatar</Label>
               <div className="grid grid-cols-6 gap-2 mb-2">
                 {ROBOT_IMAGES.map((robot) => (
                   <button
@@ -456,20 +471,23 @@ export function ControlPanelRobots() {
                   </button>
                 ))}
               </div>
-              
-              {/* Custom Image Upload Option */}
-              <div className="mt-3 space-y-2">
-                <Label className="text-sm text-gray-600">Or use custom image URL:</Label>
-                <Input
-                  placeholder="https://example.com/your-image.png"
-                  value={formData.customImageUrl || ""}
-                  onChange={(e) => setFormData({ ...formData, customImageUrl: e.target.value, imageUrl: "" })}
-                  className="text-sm"
-                />
-              </div>
+              {/* Custom uploader removed */}
             </div>
 
-            <div className="flex gap-2 pt-4">
+            {/* Provider Icon */}
+            <div className="space-y-1">
+              <Label className="font-semibold">Provider Icon</Label>
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {formData.providerIconUrl && (
+                  <div className="col-span-4 flex justify-center">
+                    <img src={formData.providerIconUrl} alt="Provider Icon" className="w-16 h-16 object-contain rounded" />
+                  </div>
+                )}
+              </div>
+              {/* Custom uploader removed */}
+            </div>
+
+            <div className="flex gap-2 pt-3">
               <Button onClick={handleSave} className="flex-1">
                 <Save className="w-4 h-4 mr-2" />
                 Save Model Card
