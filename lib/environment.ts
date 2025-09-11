@@ -76,7 +76,7 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     defaultModelProvider: process.env.DEFAULT_MODEL_PROVIDER || 'openai',
     defaultModelName: process.env.DEFAULT_MODEL_NAME || 'gpt-4',
     defaultMaxTokens: parseInt(process.env.DEFAULT_MAX_TOKENS || '2048'),
-    availableModels: (process.env.AVAILABLE_MODELS || 'gpt-4,gpt-3.5-turbo,claude-3-opus').split(',')
+  availableModels: (process.env.AVAILABLE_MODELS || 'gpt-4,gpt-4-vision').split(',')
   }
 
   return config

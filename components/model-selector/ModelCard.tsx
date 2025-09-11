@@ -181,18 +181,3 @@ export function ModelCard({
     </div>
   )
 }
-            <span>Max: {model.maxTokens.toLocaleString()}</span>
-            <span>Context: {model.contextWindow.toLocaleString()}</span>
-          </div>
-          <div className="flex flex-wrap gap-1 mt-2">
-            {model.strengths.slice(0, 2).map((strength, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                {strength}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}

@@ -61,55 +61,7 @@ export const availableModels = [
     provider: "OpenAI",
     capabilities: ["text", "code", "reasoning", "vision", "image-analysis"]
   },
-  {
-    id: "gpt-3.5-turbo",
-    name: "GPT-3.5 Turbo",
-    provider: "OpenAI",
-    capabilities: ["text", "code"]
-  },
-  {
-    id: "claude-3-opus",
-    name: "Claude 3 Opus",
-    provider: "Anthropic",
-    capabilities: ["text", "code", "reasoning"]
-  },
-  {
-    id: "claude-3-sonnet",
-    name: "Claude 3 Sonnet",
-    provider: "Anthropic",
-    capabilities: ["text", "code", "reasoning"]
-  },
-  {
-    id: "claude-3-haiku",
-    name: "Claude 3 Haiku",
-    provider: "Anthropic",
-    capabilities: ["text", "code"]
-  },
-  {
-    id: "claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet",
-    provider: "Anthropic",
-    capabilities: ["text", "code", "reasoning"]
-  },
-  {
-    id: "groq-llama2-70b",
-    name: "Llama 2 70B",
-    provider: "Groq",
-    capabilities: ["text", "code"]
-  },
-  {
-    id: "groq-mixtral-8x7b",
-    name: "Mixtral 8x7B",
-    provider: "Groq",
-    capabilities: ["text", "code", "reasoning"]
-  },
-  {
-    id: "groq-gemma-7b",
-    name: "Gemma 7B",
-    provider: "Groq",
-    capabilities: ["text", "code"]
-  }
-]
+ 
 
 interface CharacterSelectorProps {
   selectedCharacter: string
