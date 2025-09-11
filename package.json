@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.0",
-  "@babel/eslint-parser": "^7.22.0",
+    "@babel/eslint-parser": "^7.28.4",
     "@eslint/eslintrc": "^3",
     "@next/eslint-plugin-next": "^15.5.2",
     "@playwright/test": "^1.55.0",
