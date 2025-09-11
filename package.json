@@ -5,7 +5,7 @@
   "description": "Digital Hustle Lab - LLM Application with MCP Server Ecosystem (digitalhustlelab.com)",
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "pnpm": ">=9",
+    "pnpm": ">=6",
     "node": ">=18"
   },
   "scripts": {
