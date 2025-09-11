@@ -162,13 +162,13 @@ Object.entries(MODEL_CONFIGS).forEach(([key, config]) => {
     provider = 'Local'
   }
 
-  // Determine recommended features for this model
+  // Determine recommended features for this model - DISABLED
   const recommendedFor: string[] = []
-  features.forEach(feature => {
-    if (feature.recommendedModels.includes(key)) {
-      recommendedFor.push(feature.id)
-    }
-  })
+  // features.forEach(feature => {
+  //   if (feature.recommendedModels.includes(key)) {
+  //     recommendedFor.push(feature.id)
+  //   }
+  // })
 
   const modelInfo: ModelInfo = {
     id: key,
@@ -214,7 +214,7 @@ interface ModelSelectorProps {
 
 export function ModelSelector({ selectedModel, onModelSelect, currentFeature }: ModelSelectorProps) {
   const [selectedCategory, setSelectedCategory] = React.useState<keyof typeof modelCategories>('openai')
-  const [viewMode, setViewMode] = React.useState<'categories' | 'features'>('categories')
+  // const [viewMode, setViewMode] = React.useState<'categories' | 'features'>('categories') // DISABLED
   const [showCustomDialog, setShowCustomDialog] = React.useState(false)
   const [customModelData, setCustomModelData] = React.useState({
     id: '',
@@ -344,14 +344,15 @@ export function ModelSelector({ selectedModel, onModelSelect, currentFeature }: 
         </DialogContent>
       </Dialog>
 
-      {/* View Mode Toggle */}
-      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'categories' | 'features')}>
+      {/* View Mode Toggle - Features Tab Disabled */}
+      {/* <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'categories' | 'features')}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="categories">By Provider</TabsTrigger>
           <TabsTrigger value="features">By Feature</TabsTrigger>
-        </TabsList>
+        </TabsList> */}
 
-        <TabsContent value="categories" className="space-y-4">
+        {/* <TabsContent value="categories" className="space-y-4"> */}
+        <div className="space-y-4">
           {/* Category Tabs */}
           <div className="flex flex-wrap gap-2">
             {Object.entries(modelCategories).map(([key, category]) => {
@@ -431,102 +432,16 @@ export function ModelSelector({ selectedModel, onModelSelect, currentFeature }: 
               )
             })}
           </div>
-        </TabsContent>
+        {/* </TabsContent> */}
 
-        <TabsContent value="features" className="space-y-4">
-          {/* Feature Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {features.map((feature) => {
-              const IconComponent = feature.icon
-              const isCurrentFeature = currentFeature === feature.id
-              return (
-                <Card
-                  key={feature.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg ${
-                    isCurrentFeature ? "ring-2 ring-primary bg-blue-50 dark:bg-blue-950" : ""
-                  }`}
-                  onClick={() => {/* Feature selection could trigger model filtering */}}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-3">
-                      <IconComponent className="h-5 w-5" />
-                      <div>
-                        <CardTitle className="text-sm font-medium">{feature.name}</CardTitle>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {feature.recommendedModels.length} models
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <CardDescription className="text-xs mb-2">
-                      {feature.description}
-                    </CardDescription>
-                    <p className="text-xs text-muted-foreground">
-                      {feature.useCase}
-                    </p>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+        {/* Features Tab Content - DISABLED */}
+        {/* <TabsContent value="features" className="space-y-4">
+          Feature selection content goes here...
+        </TabsContent> */}
+      {/* </Tabs> */}
+      </div>
 
-          {/* Recommended Models for Current Feature */}
-          {currentFeature && recommendedModels.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Recommended for {features.find(f => f.id === currentFeature)?.name}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendedModels.map((model) => {
-                  const IconComponent = model.icon
-                  return (
-                    <Card
-                      key={model.id}
-                      className={`cursor-pointer transition-all hover:shadow-lg ${
-                        selectedModel === model.id ? "ring-2 ring-primary" : ""
-                      }`}
-                      onClick={() => onModelSelect(model.id)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${model.color}`}>
-                              <IconComponent className="h-4 w-4 text-white" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-sm font-medium">{model.name}</CardTitle>
-                              <Badge variant="outline" className="text-xs">
-                                {model.provider}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-2">
-                          <CardDescription className="text-xs">
-                            {model.description}
-                          </CardDescription>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {model.strengths.slice(0, 3).map((strength, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {strength}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {modelCategories[selectedCategory].models.length === 0 && viewMode === 'categories' && (
+      {modelCategories[selectedCategory].models.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p>No models available in this category</p>

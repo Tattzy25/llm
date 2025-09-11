@@ -157,7 +157,7 @@ export function ModelCard({
               <div className="mt-4">
                 <h6 className="text-orange-400 font-medium mb-2">Capabilities:</h6>
                 <div className="flex flex-wrap gap-1">
-                  {model.features?.slice(0, 4).map((feature, index) => (
+                  {model.strengths?.slice(0, 4).map((feature, index) => (
                     <Badge key={index} variant="outline" className="text-xs border-orange-400 text-orange-300">
                       {feature}
                     </Badge>
@@ -179,20 +179,5 @@ export function ModelCard({
         </Card>
       </div>
     </div>
-  )
-}
-            <span>Max: {model.maxTokens.toLocaleString()}</span>
-            <span>Context: {model.contextWindow.toLocaleString()}</span>
-          </div>
-          <div className="flex flex-wrap gap-1 mt-2">
-            {model.strengths.slice(0, 2).map((strength, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                {strength}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   )
 }

@@ -40,8 +40,9 @@ export async function POST(req: NextRequest) {
       urls.push(data.publicUrl)
     }
     return NextResponse.json({ urls })
-  } catch (e: any) {
-    console.error(e)
-    return NextResponse.json({ error: e.message || 'Upload failed' }, { status: 500 })
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : 'Upload failed'
+    console.error(errorMessage)
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

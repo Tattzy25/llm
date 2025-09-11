@@ -1,0 +1,10 @@
+{
+	"servers": {
+		"my-mcp-server-bfae72cc": {
+			"type": "stdio",
+			"command": "cmd",
+			"args": []
+		}
+	},
+	"inputs": []
+}
