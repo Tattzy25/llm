@@ -234,7 +234,7 @@ export default function APIKeyPage() {
                         <CardTitle className="text-lg">{provider.name}</CardTitle>
                         <CardDescription>{provider.description}</CardDescription>
                       </div>
-                      {apiKey && apiKey.isValid !== null && (
+                      {apiKey?.isValid !== null && (
                         <Badge variant={apiKey.isValid ? "default" : "destructive"}>
                           {apiKey.isValid ? (
                             <><CheckCircle className="h-3 w-3 mr-1" /> Valid</>
