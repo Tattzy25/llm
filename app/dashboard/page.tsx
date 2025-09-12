@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { CharacterSelector } from "@/components/character-selector"
+import { CharacterSelectorLegacy } from "@/components/character-selector-legacy"
 import { ModelSelector } from "@/components/model-selector"
 import { MultiChat } from "@/components/multi-chat"
 import { MCPConnectionsPage } from "@/components/mcp-connections"
@@ -31,12 +32,12 @@ import { useState } from "react"
 import Image from "next/image"
 
 export default function Page() {
-  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars" | "control-panel-robots" | "image-converter">("dashboard")
+  const [activeView, setActiveView] = useState<"dashboard" | "partyline" | "characters" | "characters-legacy" | "models" | "mcp" | "mcp-servers" | "mcp-tools" | "mcp-control" | "api-keys" | "env-vars" | "control-panel-robots" | "image-converter">("dashboard")
   const [selectedCharacter, setSelectedCharacter] = useState("assistant")
   const [selectedModel, setSelectedModel] = useState("gpt-4")
 
   const handleViewChange = (view: string) => {
-  const allowed = ["dashboard","partyline","characters","models","mcp","mcp-servers","mcp-tools","mcp-control","api-keys","env-vars","control-panel-robots","image-converter"] as const
+  const allowed = ["dashboard","partyline","characters","characters-legacy","models","mcp","mcp-servers","mcp-tools","mcp-control","api-keys","env-vars","control-panel-robots","image-converter"] as const
     if (allowed.includes(view as any)) {
       setActiveView(view as typeof activeView)
       console.log("🔄 Switching to view:", view)
@@ -67,6 +68,7 @@ export default function Page() {
                   <BreadcrumbLink href="#">
                     {activeView === "partyline" ? "Party Line" : 
                      activeView === "characters" ? "Characters" :
+                     activeView === "characters-legacy" ? "Characters Legacy" :
                      activeView === "models" ? "Models" :
                      activeView === "mcp" ? "MCP Connections" :
                      activeView === "mcp-servers" ? "MCP Servers" :
@@ -80,6 +82,7 @@ export default function Page() {
                   <BreadcrumbPage>
                     {activeView === "partyline" ? "AI Chat" : 
                      activeView === "characters" ? "Select Character" :
+                     activeView === "characters-legacy" ? "Select Character (Legacy)" :
                      activeView === "models" ? "Choose Model" :
                      activeView === "mcp" ? "Manage Connections" :
                      activeView === "mcp-servers" ? "Configure Servers" :
@@ -101,6 +104,11 @@ export default function Page() {
           <MultiChat selectedCharacter={selectedCharacter} selectedModel={selectedModel} />
         ) : activeView === "characters" ? (
           <CharacterSelector 
+            selectedCharacter={selectedCharacter} 
+            onCharacterSelect={setSelectedCharacter} 
+          />
+        ) : activeView === "characters-legacy" ? (
+          <CharacterSelectorLegacy 
             selectedCharacter={selectedCharacter} 
             onCharacterSelect={setSelectedCharacter} 
           />

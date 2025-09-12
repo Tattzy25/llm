@@ -3,7 +3,7 @@
  * Handles encryption, decryption, and validation of API keys in production
  */
 
-import { createHash, createCipher, createDecipher, randomBytes } from 'crypto'
+import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 
 // Get encryption secret from environment variables
 const getEncryptionSecret = (): string => {
@@ -29,11 +29,12 @@ export const encryptApiKey = (apiKey: string): string => {
   }
 
   try {
-    const secret = getEncryptionSecret()
-    const cipher = createCipher('aes-256-cbc', secret)
-    let encrypted = cipher.update(apiKey, 'utf8', 'hex')
-    encrypted += cipher.final('hex')
-    return encrypted
+    const secret = getEncryptionSecret();
+    const key = createHash('sha256').update(secret).digest();
+    const iv = randomBytes(16);
+    const cipher = createCipheriv('aes-256-cbc', key, iv);
+    const encrypted = Buffer.concat([cipher.update(apiKey), cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
   } catch (error) {
     console.error('Failed to encrypt API key:', error)
     throw new Error('API key encryption failed')
@@ -56,11 +57,15 @@ export const decryptApiKey = (encryptedKey: string): string => {
   }
 
   try {
-    const secret = getEncryptionSecret()
-    const decipher = createDecipher('aes-256-cbc', secret)
-    let decrypted = decipher.update(encryptedKey, 'hex', 'utf8')
-    decrypted += decipher.final('utf8')
-    return decrypted
+    const secret = getEncryptionSecret();
+    const key = createHash('sha256').update(secret).digest();
+    const parts = encryptedKey.split(':');
+    if (parts.length !== 2) throw new Error('Invalid encrypted key format');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encryptedText = Buffer.from(parts[1], 'hex');
+    const decipher = createDecipheriv('aes-256-cbc', key, iv);
+    const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+    return decrypted.toString('utf8');
   } catch (error) {
     console.error('Failed to decrypt API key:', error)
     throw new Error('API key decryption failed')

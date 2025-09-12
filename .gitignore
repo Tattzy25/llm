@@ -46,3 +46,17 @@ next-env.d.ts
 
 .env*.local
 .vercel
+
+# MCP servers and tools (prevent accidental commits)
+servers/ai_assistant/
+# (scraper_tool removed - no longer exists)
+servers/__pycache__/
+servers/*.log
+
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/

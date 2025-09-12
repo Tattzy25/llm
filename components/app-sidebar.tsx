@@ -159,6 +159,10 @@ const data = {
           url: "#",
         },
         {
+          title: "Characters Legacy",
+          url: "#",
+        },
+        {
           title: "Models",
           url: "#",
         },

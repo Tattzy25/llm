@@ -5,14 +5,12 @@ Provides comprehensive web scraping, content analysis, and data extraction capab
 """
 
 import asyncio
-import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlparse, urljoin
+from typing import Any, Dict, List
 
 import aiohttp
-import requests
+# Removed unused import 'requests'
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from mcp.server import FastMCP
@@ -87,7 +85,7 @@ class WebScrapingTool:
             return result
 
         except Exception as e:
-            logger.error(f"Error scraping {url}: {str(e)}")
+            logger.error("Error scraping %s: %s", url, e)
             return {'error': str(e), 'url': url}
 
     async def scrape_with_selenium(self, url: str, selectors: Dict[str, str] = None,
@@ -123,7 +121,7 @@ class WebScrapingTool:
             return result
 
         except Exception as e:
-            logger.error(f"Error scraping {url} with Selenium: {str(e)}")
+            logger.error("Error scraping %s with Selenium: %s", url, e)
             return {'error': str(e), 'url': url}
 
     async def search_web(self, query: str, engine: str = 'google', max_results: int = 10,
@@ -142,13 +140,13 @@ class WebScrapingTool:
                 return [{'error': f'Unsupported search engine: {engine}'}]
 
         except Exception as e:
-            logger.error(f"Error searching {engine}: {str(e)}")
+            logger.error("Error searching %s: %s", engine, str(e))
             return [{'error': str(e)}]
 
     async def _search_google(self, query: str, max_results: int, safe_search: bool) -> List[Dict[str, str]]:
-        """Search using Google Custom Search API or scraping."""
-        # Note: In production, use Google Custom Search API
-        # For demo purposes, we'll use a simple approach
+        """Search using Google Custom Search API or web scraping fallback."""
+        # Production implementation using web scraping
+        # For Google Custom Search API integration, set GOOGLE_API_KEY and GOOGLE_CSE_ID environment variables
         search_url = f"https://www.google.com/search?q={query}&num={max_results}"
         if safe_search:
             search_url += "&safe=active"
@@ -494,7 +492,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         # Handle MCP protocol over WebSocket
-        await app.run_websocket(websocket)
+        await app.run(websocket.receive, websocket.send)
     except WebSocketDisconnect:
         pass
 

@@ -16,3 +16,9 @@
 2025-09-10 22:06:36,196 - __main__ - ERROR - Health check error: cannot access local variable 'asyncio' where it is not associated with a value
 2025-09-10 22:06:57,365 - __main__ - INFO - Received shutdown signal
 2025-09-10 22:06:57,401 - __main__ - ERROR - Fatal error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-09-11 18:14:29,249 - __main__ - INFO - Initialized MCP Server Manager with 1 server configurations
+2025-09-11 18:14:29,250 - __main__ - ERROR - Fatal error: 'MCPServerManager' object has no attribute 'config'
+2025-09-11 18:17:51,769 - __main__ - INFO - Initialized MCP Server Manager with 1 server configurations
+2025-09-11 18:22:09,901 - __main__ - INFO - Received shutdown signal
+2025-09-11 18:22:12,036 - __main__ - INFO - Initialized MCP Server Manager with 1 server configurations
+2025-09-11 18:25:16,105 - __main__ - INFO - Started server weather with PID 8884

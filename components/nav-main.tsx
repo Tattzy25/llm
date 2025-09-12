@@ -74,6 +74,8 @@ export function NavMain({
                                 onViewChange("partyline")
                               } else if (subItem.title === "Characters") {
                                 onViewChange("characters")
+                              } else if (subItem.title === "Characters Legacy") {
+                                onViewChange("characters-legacy")
                               } else if (subItem.title === "Models") {
                                 onViewChange("models")
                               } else if (subItem.title === "Connections") {
