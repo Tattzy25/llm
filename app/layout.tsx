@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { EnhancedErrorBoundary, GlobalErrorHandler } from "@/components/error-boundary";
 import { GlobalErrorToaster } from "@/components/global-error-toaster";
 import { NotificationProvider } from "@/components/notification-system";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Digital Hustle Lab - LLM Application",
@@ -39,6 +40,7 @@ export default function RootLayout({
             </EnhancedErrorBoundary>
           </NotificationProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
