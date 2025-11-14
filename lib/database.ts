@@ -1,17 +1,25 @@
 import { createClient } from '@supabase/supabase-js'
 import { Redis } from '@upstash/redis'
 
-// Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Supabase client - gracefully handle missing env vars
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// Only create real client if valid credentials exist
+export const supabase = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseKey !== 'placeholder-key')
+  ? createClient(supabaseUrl, supabaseKey)
+  : createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+      global: { headers: { 'x-client-info': 'disabled' } }
+    })
 
-// Upstash Redis client
-export const redis = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-})
+// Upstash Redis client - gracefully handle missing env vars
+const redisUrl = process.env.KV_REST_API_URL || process.env.REDIS_URL
+const redisToken = process.env.KV_REST_API_TOKEN
+
+export const redis = (redisUrl && redisToken)
+  ? new Redis({ url: redisUrl, token: redisToken })
+  : null as any // Graceful fallback - operations will need to check for null
 
 // Database schemas
 export interface ApiKeyRecord {

@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from "react"
 import { validateApiKeyWithProvider, getValidationStatusMessage } from "@/lib/api-validation"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -234,7 +236,7 @@ export default function APIKeyPage() {
                         <CardTitle className="text-lg">{provider.name}</CardTitle>
                         <CardDescription>{provider.description}</CardDescription>
                       </div>
-                      {apiKey?.isValid !== null && (
+                      {apiKey?.isValid !== null && apiKey?.isValid !== undefined && (
                         <Badge variant={apiKey.isValid ? "default" : "destructive"}>
                           {apiKey.isValid ? (
                             <><CheckCircle className="h-3 w-3 mr-1" /> Valid</>

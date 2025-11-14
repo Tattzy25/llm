@@ -1,12 +1,18 @@
 import { supabase, imageSlugsDB } from '@/lib/database'
 import { createClient } from '@supabase/supabase-js'
 
-// Use service role key for storage operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { persistSession: false },
-})
+// Use service role key for storage operations - gracefully handle missing env vars
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-key'
+
+const supabaseAdmin = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseServiceKey !== 'placeholder-service-key')
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    })
+  : createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+      global: { headers: { 'x-client-info': 'disabled' } }
+    })
 
 export interface ImageUploadResult {
   slug: string
