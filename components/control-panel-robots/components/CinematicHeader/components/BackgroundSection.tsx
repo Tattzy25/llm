@@ -1,5 +1,5 @@
-import { HolographicGrid } from '../HolographicGrid'
-import { ParticleField } from '../ParticleField'
+import { HolographicGrid } from '../../HolographicGrid'
+import { ParticleField } from '../../ParticleField'
 
 export const BackgroundSection = () => {
   return (

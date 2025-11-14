@@ -25,7 +25,9 @@ import {
 import type {
   Character,
   CharacterCapabilities,
-  ModelSettings
+  ModelSettings,
+  CharacterFormData,
+  CustomModelFormData
 } from "./Character-Selector/types"
 
 // Import UI components
@@ -73,7 +75,17 @@ export function CharacterSelectorLegacy({ selectedCharacter, onCharacterSelect }
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
   const [isAdminMode, setIsAdminMode] = React.useState(false)
-  const [characterForm, setCharacterForm] = React.useState({
+  
+  // Additional state for new CharacterCreationDialog interface
+  const [showCustomModelForm, setShowCustomModelForm] = React.useState(false)
+  const [customModelForm, setCustomModelForm] = React.useState<CustomModelFormData>({
+    name: "",
+    provider: "",
+    endpoint: "",
+    maxTokens: 4096
+  })
+  
+  const [characterForm, setCharacterForm] = React.useState<CharacterFormData>({
     name: "",
     description: "",
     systemPrompt: "",
@@ -268,12 +280,57 @@ export function CharacterSelectorLegacy({ selectedCharacter, onCharacterSelect }
               onOpenChange={setIsCreateDialogOpen}
               onCreateCharacter={handleCreateCustomCharacter}
               characterForm={characterForm}
-              setCharacterForm={setCharacterForm}
-              personalityArchetypes={personalityArchetypes}
-              personalityTraits={personalityTraits}
-              modelCategories={modelCategories}
-              featureCategories={featureCategories}
-              iconOptions={iconOptions}
+              customModelForm={customModelForm}
+              showCustomModelForm={showCustomModelForm}
+              onOpenCreateDialog={() => setIsCreateDialogOpen(true)}
+              onSelectArchetype={(archetypeId) => selectArchetype(characterForm, setCharacterForm, personalityArchetypes, archetypeId)}
+              onUpdatePersonalityTrait={(traitId, value) => updatePersonalityTrait(characterForm, setCharacterForm, traitId, value)}
+              onGenerateSystemPrompt={() => generateSystemPrompt(characterForm, setCharacterForm, personalityArchetypes)}
+              onToggleModelSelection={(modelId) => {
+                setCharacterForm(prev => ({
+                  ...prev,
+                  selectedModels: prev.selectedModels.includes(modelId)
+                    ? prev.selectedModels.filter(id => id !== modelId)
+                    : [...prev.selectedModels, modelId]
+                }))
+              }}
+              onUpdateModelSetting={(modelId, setting, value) => {
+                setCharacterForm(prev => ({
+                  ...prev,
+                  modelSettings: {
+                    ...prev.modelSettings,
+                    [modelId]: {
+                      ...prev.modelSettings[modelId],
+                      [setting]: value
+                    }
+                  }
+                }))
+              }}
+              onToggleFeature={(featureId) => {
+                setCharacterForm(prev => ({
+                  ...prev,
+                  preferredFeatures: prev.preferredFeatures.includes(featureId)
+                    ? prev.preferredFeatures.filter(id => id !== featureId)
+                    : [...prev.preferredFeatures, featureId]
+                }))
+              }}
+              onAddCustomModel={() => {
+                // Add custom model logic here
+                setShowCustomModelForm(false)
+              }}
+              onSetShowCustomModelForm={setShowCustomModelForm}
+              onUpdateCustomModelForm={(field, value) => {
+                setCustomModelForm(prev => ({
+                  ...prev,
+                  [field]: value
+                }))
+              }}
+              onUpdateCharacterForm={(field, value) => {
+                setCharacterForm(prev => ({
+                  ...prev,
+                  [field]: value
+                }))
+              }}
               getAllAvailableModels={() => MODEL_CONFIGS}
               getModelCategory={(modelId) => {
                 if (modelId.startsWith('gpt-') || modelId.startsWith('o')) return 'openai'
@@ -281,9 +338,8 @@ export function CharacterSelectorLegacy({ selectedCharacter, onCharacterSelect }
                 if (modelId.includes('groq') || modelId.includes('llama')) return 'groq'
                 return 'custom'
               }}
-              generateSystemPrompt={generateSystemPrompt}
-              selectArchetype={selectArchetype}
-              updatePersonalityTrait={updatePersonalityTrait}
+              getSelectedModelsInfo={() => []}
+              getRecommendedModels={() => []}
             />
           </Dialog>
 
