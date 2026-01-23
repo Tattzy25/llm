@@ -42,7 +42,8 @@ def find_free_port(start_port=3001, max_attempts=10):
     for port in range(start_port, start_port + max_attempts):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('', port))
+                # Bind only to localhost to avoid exposing the probe on all interfaces
+                s.bind(('127.0.0.1', port))
                 return port
         except OSError:
             continue
